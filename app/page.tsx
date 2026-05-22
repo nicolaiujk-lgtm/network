@@ -6,6 +6,7 @@ import {
   BarChart3,
   Bookmark,
   CalendarDays,
+  ChevronDown,
   Download,
   Filter,
   Globe2,
@@ -18,6 +19,9 @@ import {
   Wand2
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+
+type ActiveWindow = "any" | "7" | "30" | "90";
+type UploadFrequencyFilter = "any" | "weekly-3-plus" | "weekly" | "monthly";
 
 type Creator = {
   name: string;
@@ -36,10 +40,15 @@ type Creator = {
   avgViews: string;
   avgViewsCount: number | null;
   engagement: string;
+  engagementRateRaw: number | null;
   email: string;
   emails: string[];
   tags: string[];
   lastUpload: string;
+  lastUploadAt: string | null;
+  lastUploadDaysAgo: number | null;
+  uploadFrequency: string;
+  uploadsPerWeekRaw: number | null;
   score: number;
   description: string;
 };
@@ -54,6 +63,13 @@ type YouTubeCreatorResponse = {
   channelUrl: string;
   averageViews?: string;
   averageViewsRaw: number | null;
+  engagementRate: string;
+  engagementRateRaw: number | null;
+  lastUpload: string;
+  lastUploadAt: string | null;
+  lastUploadDaysAgo: number | null;
+  uploadFrequency: string;
+  uploadsPerWeekRaw: number | null;
   region: string;
   regionCode: string;
   language: string;
@@ -67,34 +83,85 @@ type FilterState = {
   languages: string[];
   minFollowers: number;
   minAverageViews: number;
+  minEngagementRate: number;
+  activeWithinDays: ActiveWindow;
+  uploadFrequency: UploadFrequencyFilter;
 };
 
 const filters = {
-  地区: ["巴西", "美国", "欧洲"],
-  语言: ["葡萄牙语", "西班牙语", "英语"]
+  地区: ["巴西", "美国", "欧洲", "韩国", "日本", "泰国", "越南", "印尼", "菲律宾", "港台", "俄罗斯", "阿拉伯", "土耳其"],
+  语言: ["葡萄牙语", "西班牙语", "英语", "韩语", "日语", "泰语", "越南语", "印尼语", "菲律宾语", "中文", "俄语", "阿拉伯语", "土耳其语"]
 };
+
+const activeWindowOptions: Array<{ label: string; value: ActiveWindow }> = [
+  { label: "不限", value: "any" },
+  { label: "近 7 天", value: "7" },
+  { label: "近 30 天", value: "30" },
+  { label: "近 90 天", value: "90" }
+];
+
+const uploadFrequencyOptions: Array<{ label: string; value: UploadFrequencyFilter }> = [
+  { label: "不限", value: "any" },
+  { label: "每周 3 次以上", value: "weekly-3-plus" },
+  { label: "每周更新", value: "weekly" },
+  { label: "每月更新", value: "monthly" }
+];
 
 const defaultFilterState: FilterState = {
   regions: [],
   languages: [],
   minFollowers: 1000,
-  minAverageViews: 300
+  minAverageViews: 300,
+  minEngagementRate: 0,
+  activeWithinDays: "any",
+  uploadFrequency: "any"
 };
 
 const regionCodeGroups: Record<string, string[]> = {
   巴西: ["BR"],
   美国: ["US"],
-  欧洲: ["GB", "DE", "FR", "ES", "IT", "NL", "PL", "SE", "NO", "DK", "FI", "PT"]
+  欧洲: ["GB", "DE", "FR", "ES", "IT", "NL", "PL", "SE", "NO", "DK", "FI", "PT"],
+  韩国: ["KR"],
+  日本: ["JP"],
+  泰国: ["TH"],
+  越南: ["VN"],
+  印尼: ["ID"],
+  菲律宾: ["PH"],
+  港台: ["HK", "TW", "MO"],
+  俄罗斯: ["RU"],
+  阿拉伯: ["AE", "SA", "EG", "QA", "KW", "BH", "OM", "JO", "LB", "IQ", "MA", "DZ", "TN"],
+  土耳其: ["TR"]
 };
 
 const languageCodeGroups: Record<string, string[]> = {
   葡萄牙语: ["pt"],
   西班牙语: ["es"],
-  英语: ["en"]
+  英语: ["en"],
+  韩语: ["ko"],
+  日语: ["ja"],
+  泰语: ["th"],
+  越南语: ["vi"],
+  印尼语: ["id"],
+  菲律宾语: ["tl", "fil"],
+  中文: ["zh"],
+  俄语: ["ru"],
+  阿拉伯语: ["ar"],
+  土耳其语: ["tr"]
+};
+
+const uploadFrequencyThresholds: Record<Exclude<UploadFrequencyFilter, "any">, number> = {
+  "weekly-3-plus": 3,
+  weekly: 1,
+  monthly: 0.25
 };
 
 const compactNumberFormatter = new Intl.NumberFormat("en", {
   notation: "compact",
+  maximumFractionDigits: 1
+});
+
+const percentageFormatter = new Intl.NumberFormat("en", {
+  minimumFractionDigits: 0,
   maximumFractionDigits: 1
 });
 
@@ -131,11 +198,16 @@ function normalizeCreator(item: YouTubeCreatorResponse, query: string, index: nu
     followersCount: item.subscriberCountRaw,
     avgViews: item.averageViews ?? "暂未提供",
     avgViewsCount: item.averageViewsRaw,
-    engagement: "需接入分析",
+    engagement: item.engagementRate,
+    engagementRateRaw: item.engagementRateRaw,
     email: item.email,
     emails: item.emails,
     tags: inferTags(query, item.description),
-    lastUpload: "来自 YouTube API",
+    lastUpload: item.lastUpload,
+    lastUploadAt: item.lastUploadAt,
+    lastUploadDaysAgo: item.lastUploadDaysAgo,
+    uploadFrequency: item.uploadFrequency,
+    uploadsPerWeekRaw: item.uploadsPerWeekRaw,
     score: Math.max(82, 96 - index * 3),
     description: item.description || "该频道暂未提供简介，可进入 YouTube 主页查看完整内容与近期视频。"
   };
@@ -145,6 +217,10 @@ function formatCompactNumber(value: number) {
   return compactNumberFormatter.format(value);
 }
 
+function formatPercentage(value: number) {
+  return `${percentageFormatter.format(value)}%`;
+}
+
 function matchesSelectedGroup(value: string, selected: string[], groups: Record<string, string[]>) {
   if (selected.length === 0) return true;
   if (!value) return true;
@@ -152,16 +228,59 @@ function matchesSelectedGroup(value: string, selected: string[], groups: Record<
   return selected.some((item) => groups[item]?.includes(value));
 }
 
+function matchesActiveWindow(lastUploadDaysAgo: number | null, activeWithinDays: ActiveWindow) {
+  if (activeWithinDays === "any") return true;
+
+  return typeof lastUploadDaysAgo === "number" && lastUploadDaysAgo <= Number(activeWithinDays);
+}
+
+function matchesUploadFrequency(
+  uploadsPerWeekRaw: number | null,
+  uploadFrequency: UploadFrequencyFilter
+) {
+  if (uploadFrequency === "any") return true;
+
+  return (
+    typeof uploadsPerWeekRaw === "number" &&
+    uploadsPerWeekRaw >= uploadFrequencyThresholds[uploadFrequency]
+  );
+}
+
 function filterCreators(creators: Creator[], filterState: FilterState) {
   return creators.filter((creator) => {
     const matchesRegion = matchesSelectedGroup(creator.regionCode, filterState.regions, regionCodeGroups);
-    const matchesLanguage = matchesSelectedGroup(creator.languageCode, filterState.languages, languageCodeGroups);
+    const matchesLanguage = matchesSelectedGroup(
+      creator.languageCode,
+      filterState.languages,
+      languageCodeGroups
+    );
     const matchesFollowers =
       typeof creator.followersCount !== "number" || creator.followersCount >= filterState.minFollowers;
     const matchesAverageViews =
-      typeof creator.avgViewsCount !== "number" || creator.avgViewsCount >= filterState.minAverageViews;
+      typeof creator.avgViewsCount !== "number" ||
+      creator.avgViewsCount >= filterState.minAverageViews;
+    const matchesEngagement =
+      filterState.minEngagementRate <= 0 ||
+      (typeof creator.engagementRateRaw === "number" &&
+        creator.engagementRateRaw >= filterState.minEngagementRate);
+    const matchesRecentActivity = matchesActiveWindow(
+      creator.lastUploadDaysAgo,
+      filterState.activeWithinDays
+    );
+    const matchesFrequency = matchesUploadFrequency(
+      creator.uploadsPerWeekRaw,
+      filterState.uploadFrequency
+    );
 
-    return matchesRegion && matchesLanguage && matchesFollowers && matchesAverageViews;
+    return (
+      matchesRegion &&
+      matchesLanguage &&
+      matchesFollowers &&
+      matchesAverageViews &&
+      matchesEngagement &&
+      matchesRecentActivity &&
+      matchesFrequency
+    );
   });
 }
 
@@ -180,6 +299,9 @@ function exportCreatorsToCsv(creators: Creator[], query: string) {
     "粉丝数量",
     "粉丝数原始值",
     "平均播放",
+    "互动率",
+    "最近活跃",
+    "更新频率",
     "邮箱",
     "频道ID",
     "频道简介"
@@ -193,6 +315,9 @@ function exportCreatorsToCsv(creators: Creator[], query: string) {
     creator.followers,
     creator.followersCount ?? "未公开",
     creator.avgViews,
+    creator.engagement,
+    creator.lastUpload,
+    creator.uploadFrequency,
     creator.email,
     creator.channelId,
     creator.description
@@ -442,6 +567,7 @@ function FilterPanel({
       };
     });
   };
+
   const clearFilters = () => setFilterState(defaultFilterState);
 
   return (
@@ -491,7 +617,25 @@ function FilterPanel({
           value={filterState.minFollowers}
           valueLabel={`${formatCompactNumber(filterState.minFollowers)}+`}
         />
-        <RangeBlock label="互动率" value="3% - 12%" />
+        <RangeBlock
+          label="互动率"
+          max={15}
+          min={0}
+          onChange={(value) =>
+            setFilterState((current) => ({
+              ...current,
+              minEngagementRate: value
+            }))
+          }
+          rangeLabel="范围：0% - 15%"
+          step={0.5}
+          value={filterState.minEngagementRate}
+          valueLabel={
+            filterState.minEngagementRate > 0
+              ? `${formatPercentage(filterState.minEngagementRate)}+`
+              : "不限"
+          }
+        />
         <RangeBlock
           label="平均播放"
           max={100000}
@@ -513,10 +657,21 @@ function FilterPanel({
             <CalendarDays className="size-4 text-slate-400" />
             最近活跃时间
           </label>
-          <select className="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-primary">
-            <option>近 7 天</option>
-            <option>近 30 天</option>
-            <option>近 90 天</option>
+          <select
+            className="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-primary"
+            value={filterState.activeWithinDays}
+            onChange={(event) =>
+              setFilterState((current) => ({
+                ...current,
+                activeWithinDays: event.target.value as ActiveWindow
+              }))
+            }
+          >
+            {activeWindowOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -525,10 +680,21 @@ function FilterPanel({
             <TrendingUp className="size-4 text-slate-400" />
             更新频率
           </label>
-          <select className="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-primary">
-            <option>每周 3 次以上</option>
-            <option>每周更新</option>
-            <option>每月更新</option>
+          <select
+            className="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-primary"
+            value={filterState.uploadFrequency}
+            onChange={(event) =>
+              setFilterState((current) => ({
+                ...current,
+                uploadFrequency: event.target.value as UploadFrequencyFilter
+              }))
+            }
+          >
+            {uploadFrequencyOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </div>
       </div>
@@ -552,18 +718,34 @@ function FilterGroup({
     语言: Languages
   };
   const Icon = iconMap[label] ?? Tags;
+  const summary =
+    selectedOptions.length === 0
+      ? `选择${label}`
+      : selectedOptions.length <= 2
+        ? selectedOptions.join("、")
+        : `已选 ${selectedOptions.length} 项`;
 
   return (
-    <div>
-      <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
-        <Icon className="size-4 text-slate-400" />
-        {label}
-      </p>
-      <div className="grid grid-cols-2 gap-2">
-        {options.map((option, index) => (
+    <details className="group">
+      <summary className="flex min-h-11 list-none items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-indigo-200 hover:bg-white">
+        <span className="flex min-w-0 items-center gap-2">
+          <Icon className="size-4 shrink-0 text-slate-400" />
+          <span className="truncate">{summary}</span>
+        </span>
+        <span className="flex items-center gap-2">
+          {selectedOptions.length > 0 && (
+            <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-primary">
+              {selectedOptions.length}
+            </span>
+          )}
+          <ChevronDown className="size-4 shrink-0 text-slate-400 transition group-open:rotate-180" />
+        </span>
+      </summary>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        {options.map((option) => (
           <label
             key={option}
-            className="flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-indigo-200 hover:bg-indigo-50"
+            className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-indigo-200 hover:bg-indigo-50"
           >
             <input
               checked={selectedOptions.includes(option)}
@@ -575,7 +757,7 @@ function FilterGroup({
           </label>
         ))}
       </div>
-    </div>
+    </details>
   );
 }
 
@@ -701,7 +883,7 @@ function EmptyState({ hasRawResults }: { hasRawResults: boolean }) {
         {hasRawResults ? "当前筛选条件下没有匹配频道" : "没有找到匹配的 YouTube 频道"}
       </h3>
       <p className="mt-2 text-sm text-slate-500">
-        {hasRawResults ? "放宽粉丝量、平均播放、地区或语言筛选后再试。" : "换一个游戏、地区或内容关键词再试一次。"}
+        {hasRawResults ? "放宽筛选条件后再试一次。" : "换一个游戏、地区或内容关键词再试一次。"}
       </p>
     </div>
   );
@@ -772,12 +954,13 @@ function CreatorCard({
           <div className="grid grid-cols-3 gap-2">
             <Metric label="粉丝量" value={creator.followers} />
             <Metric label="平均播放" value={creator.avgViews} />
-            <Metric label="邮箱" value={creator.email === "未公开" ? "未公开" : "已识别"} />
+            <Metric label="互动率" value={creator.engagement} />
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <div className="rounded-lg bg-slate-50 p-3">
-              <p className="text-xs font-medium text-slate-500">数据来源</p>
+              <p className="text-xs font-medium text-slate-500">最近活跃</p>
               <p className="mt-1 text-sm font-semibold text-slate-950">{creator.lastUpload}</p>
+              <p className="mt-1 text-xs text-slate-500">更新频率：{creator.uploadFrequency}</p>
             </div>
             <div className="rounded-lg bg-gradient-to-br from-indigo-50 to-blue-50 p-3">
               <p className="text-xs font-medium text-slate-500">匹配度</p>
@@ -785,7 +968,11 @@ function CreatorCard({
             </div>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
-            <ActionButton label="查看主页" icon={BarChart3} onClick={() => window.open(creator.channelUrl, "_blank", "noopener,noreferrer")} />
+            <ActionButton
+              label="查看主页"
+              icon={BarChart3}
+              onClick={() => window.open(creator.channelUrl, "_blank", "noopener,noreferrer")}
+            />
             <ActionButton label="查找相似博主" icon={Wand2} primary onClick={() => setSelectedCreator(creator)} />
             <ActionButton label="收藏博主" icon={Bookmark} />
           </div>
