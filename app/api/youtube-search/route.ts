@@ -151,12 +151,13 @@ function formatNumber(value?: string) {
 }
 
 function formatPercentage(value: number | null) {
-  if (!Number.isFinite(value)) return "暂未提供";
+  const safeValue = value ?? 0;
+  if (value === null || !Number.isFinite(safeValue)) return "暂未提供";
 
   return `${new Intl.NumberFormat("en", {
-    minimumFractionDigits: value >= 10 ? 0 : 1,
+    minimumFractionDigits: safeValue >= 10 ? 0 : 1,
     maximumFractionDigits: 1
-  }).format(value)}%`;
+  }).format(safeValue)}%`;
 }
 
 function getRegion(code?: string) {
