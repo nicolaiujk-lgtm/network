@@ -226,10 +226,11 @@ function getLastUploadLabel(lastUploadAt: string | null) {
 }
 
 function getUploadFrequency(uploadsPerWeekRaw: number | null) {
-  if (!Number.isFinite(uploadsPerWeekRaw)) return "暂未提供";
-  if (uploadsPerWeekRaw >= 3) return "每周 3 次以上";
-  if (uploadsPerWeekRaw >= 1) return "每周更新";
-  if (uploadsPerWeekRaw >= 0.25) return "每月更新";
+  const safeUploadsPerWeek = uploadsPerWeekRaw ?? 0;
+  if (uploadsPerWeekRaw === null || !Number.isFinite(safeUploadsPerWeek)) return "暂未提供";
+  if (safeUploadsPerWeek >= 3) return "每周 3 次以上";
+  if (safeUploadsPerWeek >= 1) return "每周更新";
+  if (safeUploadsPerWeek >= 0.25) return "每月更新";
   return "低于每月更新";
 }
 
