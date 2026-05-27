@@ -431,7 +431,7 @@ export default function Home() {
         normalizeCreator(item, trimmedQuery, index)
       );
       setCreators(normalizedCreators);
-      setSelectedCreator(normalizedCreators[0] ?? null);
+      setSelectedCreator(null);
     } catch (searchError) {
       setCreators([]);
       setSelectedCreator(null);
@@ -489,7 +489,7 @@ export default function Home() {
         return currentCreator;
       }
 
-      return filteredCreators[0] ?? null;
+      return null;
     });
   }, [filteredCreators]);
 
@@ -523,10 +523,10 @@ export default function Home() {
             isLoading={isLoading}
             hasSearched={hasSearched}
             searchCreators={() => runSearch(query)}
+            selectedCreatorId={selectedCreator?.channelId ?? null}
             setSelectedCreator={setSelectedCreator}
           />
         </div>
-        <RecommendationPanel creator={selectedCreator} creators={filteredCreators} />
       </section>
     </main>
   );
@@ -908,6 +908,7 @@ function SearchResults({
   hasSearched,
   isLoading,
   searchCreators,
+  selectedCreatorId,
   setSelectedCreator,
   totalCreators
 }: {
@@ -916,7 +917,8 @@ function SearchResults({
   hasSearched: boolean;
   isLoading: boolean;
   searchCreators: () => void;
-  setSelectedCreator: (creator: Creator) => void;
+  selectedCreatorId: string | null;
+  setSelectedCreator: (creator: Creator | null) => void;
   totalCreators: number;
 }) {
   return (
@@ -947,7 +949,13 @@ function SearchResults({
         {!isLoading &&
           !error &&
           creators.map((creator) => (
-            <CreatorCard key={creator.channelId} creator={creator} setSelectedCreator={setSelectedCreator} />
+            <CreatorCard
+              key={creator.channelId}
+              creator={creator}
+              isRecommendationOpen={selectedCreatorId === creator.channelId}
+              similarCreators={creators.filter((item) => item.channelId !== creator.channelId).slice(0, 3)}
+              setSelectedCreator={setSelectedCreator}
+            />
           ))}
       </div>
     </section>
@@ -1004,10 +1012,14 @@ function ErrorState({ error, onRetry }: { error: string; onRetry: () => void }) 
 
 function CreatorCard({
   creator,
+  isRecommendationOpen,
+  similarCreators,
   setSelectedCreator
 }: {
   creator: Creator;
-  setSelectedCreator: (creator: Creator) => void;
+  isRecommendationOpen: boolean;
+  similarCreators: Creator[];
+  setSelectedCreator: (creator: Creator | null) => void;
 }) {
   return (
     <motion.article
@@ -1071,85 +1083,77 @@ function CreatorCard({
               icon={BarChart3}
               onClick={() => window.open(creator.channelUrl, "_blank", "noopener,noreferrer")}
             />
-            <ActionButton label="查找相似博主" icon={Wand2} primary onClick={() => setSelectedCreator(creator)} />
+            <ActionButton
+              label={isRecommendationOpen ? "收起相似博主" : "查找相似博主"}
+              icon={Wand2}
+              primary
+              onClick={() => setSelectedCreator(isRecommendationOpen ? null : creator)}
+            />
             <ActionButton label="收藏博主" icon={Bookmark} />
           </div>
         </div>
       </div>
+
+      {isRecommendationOpen && similarCreators.length > 0 && (
+        <div className="mt-5 border-t border-slate-200 pt-5">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-primary">相似博主推荐</p>
+              <h4 className="mt-1 text-lg font-semibold text-slate-950">与 {creator.name} 相近的 YouTube 博主</h4>
+            </div>
+            <p className="text-sm text-slate-500">在当前卡片内直接展开，方便快速对比。</p>
+          </div>
+
+          <div className="mt-4 grid gap-3 lg:grid-cols-3">
+            {similarCreators.map((item) => (
+              <InlineRecommendationCard key={item.channelId} creator={item} />
+            ))}
+          </div>
+        </div>
+      )}
     </motion.article>
   );
 }
 
-function RecommendationPanel({ creator, creators }: { creator: Creator | null; creators: Creator[] }) {
-  if (!creator || creators.length <= 1) {
-    return (
-      <section className="rounded-lg border border-white/10 bg-white p-5 shadow-card sm:p-6">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-wide text-primary">相似博主推荐</p>
-            <h2 className="mt-2 text-xl font-semibold text-slate-950">等待 YouTube 检索结果</h2>
-          </div>
-          <p className="text-sm text-slate-500">检索后将展示同批次频道中的相似推荐。</p>
-        </div>
-      </section>
-    );
-  }
-
-  const similar = creators.filter((item) => item.channelId !== creator.channelId).slice(0, 3);
-
+function InlineRecommendationCard({ creator }: { creator: Creator }) {
   return (
-    <section className="rounded-lg border border-white/10 bg-white p-5 shadow-card sm:p-6">
-      <div className="flex flex-col gap-2 border-b border-slate-200 pb-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-primary">相似博主推荐</p>
-          <h2 className="mt-2 text-xl font-semibold text-slate-950">与 {creator.name} 相近的 YouTube 博主</h2>
+    <motion.article
+      layout
+      whileHover={{ y: -2 }}
+      className="rounded-lg border border-slate-200 bg-slate-50/80 p-4 shadow-sm transition hover:border-indigo-200 hover:bg-white"
+    >
+      <div className="flex items-start gap-3">
+        <Avatar creator={creator} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="truncate font-semibold text-slate-950">{creator.name}</p>
+            <PlatformBadge platform={creator.platform} />
+          </div>
+          <p className="mt-1 text-xs text-slate-500">{creator.region}</p>
         </div>
-        <p className="text-sm text-slate-500">基于当前关键词返回的频道结果快速推荐。</p>
       </div>
 
-      <div className="thin-scrollbar mt-5 grid auto-cols-[minmax(260px,1fr)] grid-flow-col gap-4 overflow-x-auto pb-2 lg:grid-flow-row lg:grid-cols-3 lg:overflow-visible lg:pb-0">
-        {similar.map((item) => (
-          <motion.article
-            key={item.channelId}
-            layout
-            whileHover={{ y: -3 }}
-            className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition hover:border-indigo-200 hover:shadow-card"
-          >
-            <div className="flex items-start gap-3">
-              <Avatar creator={item} />
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="truncate font-semibold text-slate-950">{item.name}</p>
-                  <PlatformBadge platform={item.platform} />
-                </div>
-                <p className="mt-1 text-xs text-slate-500">{item.region}</p>
-              </div>
-            </div>
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <Metric label="粉丝量" value={creator.followers} />
+        <Metric label="平均播放" value={creator.avgViews} />
+      </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <Metric label="粉丝量" value={item.followers} />
-              <Metric label="平均播放" value={item.avgViews} />
-            </div>
-
-            <div className="mt-4 flex flex-wrap gap-2">
-              {item.tags.slice(0, 2).map((tag) => (
-                <span key={tag} className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">
-                  {tag}
-                </span>
-              ))}
-            </div>
-
-            <button
-              onClick={() => window.open(item.channelUrl, "_blank", "noopener,noreferrer")}
-              className="mt-4 flex min-h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-indigo-200 hover:text-primary"
-            >
-              <BarChart3 className="size-4" />
-              查看主页
-            </button>
-          </motion.article>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {creator.tags.slice(0, 2).map((tag) => (
+          <span key={tag} className="rounded-md bg-white px-2 py-1 text-xs font-semibold text-slate-600">
+            {tag}
+          </span>
         ))}
       </div>
-    </section>
+
+      <button
+        onClick={() => window.open(creator.channelUrl, "_blank", "noopener,noreferrer")}
+        className="mt-4 flex min-h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-indigo-200 hover:text-primary"
+      >
+        <BarChart3 className="size-4" />
+        查看主页
+      </button>
+    </motion.article>
   );
 }
 
