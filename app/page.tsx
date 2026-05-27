@@ -95,8 +95,8 @@ type RangeOption = {
 };
 
 const filters = {
-  地区: ["巴西", "美国", "欧洲", "韩国", "日本", "泰国", "越南", "印尼", "菲律宾", "港台", "俄罗斯", "阿拉伯", "土耳其"],
-  语言: ["葡萄牙语", "西班牙语", "英语", "韩语", "日语", "泰语", "越南语", "印尼语", "菲律宾语", "中文", "俄语", "阿拉伯语", "土耳其语"]
+  地区: ["Brazil", "United States", "Europe", "Korea", "Japan", "Thailand", "Vietnam", "Indonesia", "Philippines", "Hong Kong & Taiwan", "Russia", "Arab", "Turkey"],
+  语言: ["Portuguese", "Spanish", "English", "Korean", "Japanese", "Thai", "Vietnamese", "Indonesian", "Filipino", "Chinese", "Russian", "Arabic", "Turkish"]
 };
 
 const activeWindowOptions: Array<{ label: string; value: ActiveWindow }> = [
@@ -150,35 +150,35 @@ const averageViewRangeOptions: RangeOption[] = [
 ];
 
 const regionCodeGroups: Record<string, string[]> = {
-  巴西: ["BR"],
-  美国: ["US"],
-  欧洲: ["GB", "DE", "FR", "ES", "IT", "NL", "PL", "SE", "NO", "DK", "FI", "PT"],
-  韩国: ["KR"],
-  日本: ["JP"],
-  泰国: ["TH"],
-  越南: ["VN"],
-  印尼: ["ID"],
-  菲律宾: ["PH"],
-  港台: ["HK", "TW", "MO"],
-  俄罗斯: ["RU"],
-  阿拉伯: ["AE", "SA", "EG", "QA", "KW", "BH", "OM", "JO", "LB", "IQ", "MA", "DZ", "TN"],
-  土耳其: ["TR"]
+  Brazil: ["BR"],
+  "United States": ["US"],
+  Europe: ["GB", "DE", "FR", "ES", "IT", "NL", "PL", "SE", "NO", "DK", "FI", "PT"],
+  Korea: ["KR"],
+  Japan: ["JP"],
+  Thailand: ["TH"],
+  Vietnam: ["VN"],
+  Indonesia: ["ID"],
+  Philippines: ["PH"],
+  "Hong Kong & Taiwan": ["HK", "TW", "MO"],
+  Russia: ["RU"],
+  Arab: ["AE", "SA", "EG", "QA", "KW", "BH", "OM", "JO", "LB", "IQ", "MA", "DZ", "TN"],
+  Turkey: ["TR"]
 };
 
 const languageCodeGroups: Record<string, string[]> = {
-  葡萄牙语: ["pt"],
-  西班牙语: ["es"],
-  英语: ["en"],
-  韩语: ["ko"],
-  日语: ["ja"],
-  泰语: ["th"],
-  越南语: ["vi"],
-  印尼语: ["id"],
-  菲律宾语: ["tl", "fil"],
-  中文: ["zh"],
-  俄语: ["ru"],
-  阿拉伯语: ["ar"],
-  土耳其语: ["tr"]
+  Portuguese: ["pt"],
+  Spanish: ["es"],
+  English: ["en"],
+  Korean: ["ko"],
+  Japanese: ["ja"],
+  Thai: ["th"],
+  Vietnamese: ["vi"],
+  Indonesian: ["id"],
+  Filipino: ["tl", "fil"],
+  Chinese: ["zh"],
+  Russian: ["ru"],
+  Arabic: ["ar"],
+  Turkish: ["tr"]
 };
 
 const uploadFrequencyThresholds: Record<Exclude<UploadFrequencyFilter, "any">, number> = {
@@ -795,12 +795,16 @@ function FilterGroup({
     语言: Languages
   };
   const Icon = iconMap[label] ?? Tags;
+  const placeholderMap: Record<string, string> = {
+    地区: "Select Region",
+    语言: "Select Language"
+  };
   const summary =
     selectedOptions.length === 0
-      ? `选择${label}`
+      ? placeholderMap[label] ?? `Select ${label}`
       : selectedOptions.length <= 2
         ? selectedOptions.join("、")
-        : `已选 ${selectedOptions.length} 项`;
+        : `Selected ${selectedOptions.length}`;
 
   return (
     <details className="group">
