@@ -88,6 +88,12 @@ type FilterState = {
   uploadFrequency: UploadFrequencyFilter;
 };
 
+type RangeOption = {
+  value: number;
+  label: string;
+  selectedLabel?: string;
+};
+
 const filters = {
   地区: ["巴西", "美国", "欧洲", "韩国", "日本", "泰国", "越南", "印尼", "菲律宾", "港台", "俄罗斯", "阿拉伯", "土耳其"],
   语言: ["葡萄牙语", "西班牙语", "英语", "韩语", "日语", "泰语", "越南语", "印尼语", "菲律宾语", "中文", "俄语", "阿拉伯语", "土耳其语"]
@@ -116,6 +122,32 @@ const defaultFilterState: FilterState = {
   activeWithinDays: "any",
   uploadFrequency: "any"
 };
+
+const followerRangeOptions: RangeOption[] = [
+  { value: 1000, label: "1K", selectedLabel: "1K+" },
+  { value: 10000, label: "1w", selectedLabel: "1w+" },
+  { value: 50000, label: "5w", selectedLabel: "5w+" },
+  { value: 100000, label: "10w", selectedLabel: "10w+" },
+  { value: 200000, label: "20w", selectedLabel: "20w+" },
+  { value: 300000, label: "30w", selectedLabel: "30w+" },
+  { value: 500000, label: "50w", selectedLabel: "50w+" },
+  { value: 1000000, label: "100w", selectedLabel: "100w+" }
+];
+
+const engagementRangeOptions: RangeOption[] = [
+  { value: 0, label: "0", selectedLabel: "不限" },
+  { value: 5, label: "5%", selectedLabel: "5%+" },
+  { value: 10, label: "10%", selectedLabel: "10%+" },
+  { value: 15, label: "15%", selectedLabel: "15%+" }
+];
+
+const averageViewRangeOptions: RangeOption[] = [
+  { value: 300, label: "300", selectedLabel: "300+" },
+  { value: 500, label: "500", selectedLabel: "500+" },
+  { value: 1000, label: "1k", selectedLabel: "1k+" },
+  { value: 5000, label: "5k", selectedLabel: "5k+" },
+  { value: 10000, label: "1w+", selectedLabel: "1w+" }
+];
 
 const regionCodeGroups: Record<string, string[]> = {
   巴西: ["BR"],
@@ -219,6 +251,19 @@ function formatCompactNumber(value: number) {
 
 function formatPercentage(value: number) {
   return `${percentageFormatter.format(value)}%`;
+}
+
+function getRangeOptionIndex(value: number, options: RangeOption[]) {
+  const optionIndex = options.findIndex((option) => option.value === value);
+
+  return optionIndex >= 0 ? optionIndex : 0;
+}
+
+function getSelectedRangeLabel(value: number, options: RangeOption[]) {
+  const safeIndex = getRangeOptionIndex(value, options);
+  const option = options[safeIndex];
+
+  return option.selectedLabel ?? option.label;
 }
 
 function matchesSelectedGroup(value: string, selected: string[], groups: Record<string, string[]>) {
@@ -604,52 +649,39 @@ function FilterPanel({
 
         <RangeBlock
           label="粉丝量"
-          max={1000000}
-          min={1000}
+          options={followerRangeOptions}
           onChange={(value) =>
             setFilterState((current) => ({
               ...current,
               minFollowers: value
             }))
           }
-          rangeLabel="范围：1K - 1M"
-          step={1000}
           value={filterState.minFollowers}
-          valueLabel={`${formatCompactNumber(filterState.minFollowers)}+`}
+          valueLabel={getSelectedRangeLabel(filterState.minFollowers, followerRangeOptions)}
         />
         <RangeBlock
           label="互动率"
-          max={15}
-          min={0}
+          options={engagementRangeOptions}
           onChange={(value) =>
             setFilterState((current) => ({
               ...current,
               minEngagementRate: value
             }))
           }
-          rangeLabel="范围：0% - 15%"
-          step={0.5}
           value={filterState.minEngagementRate}
-          valueLabel={
-            filterState.minEngagementRate > 0
-              ? `${formatPercentage(filterState.minEngagementRate)}+`
-              : "不限"
-          }
+          valueLabel={getSelectedRangeLabel(filterState.minEngagementRate, engagementRangeOptions)}
         />
         <RangeBlock
           label="平均播放"
-          max={100000}
-          min={300}
+          options={averageViewRangeOptions}
           onChange={(value) =>
             setFilterState((current) => ({
               ...current,
               minAverageViews: value
             }))
           }
-          rangeLabel="范围：300 - 100K"
-          step={100}
           value={filterState.minAverageViews}
-          valueLabel={`${formatCompactNumber(filterState.minAverageViews)}+`}
+          valueLabel={getSelectedRangeLabel(filterState.minAverageViews, averageViewRangeOptions)}
         />
 
         <div>
@@ -763,23 +795,20 @@ function FilterGroup({
 
 function RangeBlock({
   label,
-  max,
-  min,
+  options,
   onChange,
-  rangeLabel,
-  step = 1,
   value,
   valueLabel
 }: {
   label: string;
-  max?: number;
-  min?: number;
+  options: RangeOption[];
   onChange?: (value: number) => void;
-  rangeLabel?: string;
-  step?: number;
   value: number | string;
   valueLabel?: string;
 }) {
+  const currentValue = typeof value === "number" ? value : options[0]?.value ?? 0;
+  const sliderIndex = getRangeOptionIndex(currentValue, options);
+
   return (
     <div>
       <div className="mb-3 flex items-center justify-between">
@@ -787,19 +816,43 @@ function RangeBlock({
         <p className="text-xs font-semibold text-primary">{valueLabel ?? value}</p>
       </div>
       {onChange ? (
-        <input
-          className="range-track w-full"
-          max={max ?? 100}
-          min={min ?? 0}
-          onChange={(event) => onChange(Number(event.target.value))}
-          step={step}
-          type="range"
-          value={typeof value === "number" ? value : 72}
-        />
+        <>
+          <input
+            className="range-track w-full"
+            max={Math.max(options.length - 1, 0)}
+            min={0}
+            onChange={(event) => {
+              const nextIndex = Number(event.target.value);
+              const nextOption = options[nextIndex] ?? options[0];
+
+              if (nextOption) {
+                onChange(nextOption.value);
+              }
+            }}
+            step={1}
+            type="range"
+            value={sliderIndex}
+          />
+          <div className="mt-3 grid gap-2" style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}>
+            {options.map((option, index) => {
+              const isActive = index <= sliderIndex;
+
+              return (
+                <span
+                  key={`${label}-${option.value}`}
+                  className={`text-center text-[11px] font-semibold transition ${
+                    isActive ? "text-primary" : "text-slate-400"
+                  }`}
+                >
+                  {option.label}
+                </span>
+              );
+            })}
+          </div>
+        </>
       ) : (
         <input className="range-track w-full" type="range" min="0" max="100" defaultValue="72" />
       )}
-      {rangeLabel && <p className="mt-1 text-xs font-medium text-slate-400">{rangeLabel}</p>}
     </div>
   );
 }
