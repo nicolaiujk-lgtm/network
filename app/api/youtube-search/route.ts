@@ -3,6 +3,13 @@ import { NextResponse } from "next/server";
 type YouTubeSearchItem = {
   id?: {
     channelId?: string;
+    videoId?: string;
+  };
+  snippet?: {
+    channelId?: string;
+    channelTitle?: string;
+    title?: string;
+    description?: string;
   };
 };
 
@@ -67,6 +74,15 @@ type ChannelActivityMetrics = {
   uploadsPerWeekRaw: number | null;
 };
 
+type ChannelCandidate = {
+  channelId: string;
+  searchScore: number;
+  matchedVideoCount: number;
+};
+
+const VIDEO_SEARCH_LIMIT = 30;
+const CHANNEL_SEARCH_LIMIT = 20;
+const MAX_CHANNEL_RESULTS = 50;
 const RECENT_UPLOAD_LIMIT = 8;
 const CONCURRENT_ACTIVITY_REQUESTS = 6;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -234,6 +250,87 @@ function getUploadFrequency(uploadsPerWeekRaw: number | null) {
   return "低于每月更新";
 }
 
+function normalizeSearchText(text?: string) {
+  return (text ?? "").toLowerCase().trim();
+}
+
+function buildQueryKeywords(query: string) {
+  return Array.from(
+    new Set(
+      normalizeSearchText(query)
+        .split(/\s+/)
+        .map((keyword) => keyword.replace(/[^\p{L}\p{N}]+/gu, ""))
+        .filter(Boolean)
+    )
+  );
+}
+
+function countKeywordMatches(text: string, keywords: string[]) {
+  const normalizedText = normalizeSearchText(text);
+
+  return keywords.reduce((score, keyword) => {
+    return normalizedText.includes(keyword) ? score + 1 : score;
+  }, 0);
+}
+
+function upsertChannelCandidate(
+  candidates: Map<string, ChannelCandidate>,
+  channelId: string,
+  scoreDelta: number,
+  matchedVideoCountDelta = 0
+) {
+  const current = candidates.get(channelId);
+
+  if (current) {
+    current.searchScore += scoreDelta;
+    current.matchedVideoCount += matchedVideoCountDelta;
+    return;
+  }
+
+  candidates.set(channelId, {
+    channelId,
+    searchScore: scoreDelta,
+    matchedVideoCount: matchedVideoCountDelta
+  });
+}
+
+function collectVideoSearchCandidates(
+  items: YouTubeSearchItem[],
+  keywords: string[],
+  candidates: Map<string, ChannelCandidate>
+) {
+  items.forEach((item, index) => {
+    const channelId = item.snippet?.channelId;
+    if (!channelId) return;
+
+    const titleMatches = countKeywordMatches(item.snippet?.title ?? "", keywords);
+    const descriptionMatches = countKeywordMatches(item.snippet?.description ?? "", keywords);
+    const scoreDelta = 140 - index * 2 + titleMatches * 24 + descriptionMatches * 6;
+
+    upsertChannelCandidate(candidates, channelId, scoreDelta, 1);
+  });
+}
+
+function collectChannelSearchCandidates(
+  items: YouTubeSearchItem[],
+  keywords: string[],
+  candidates: Map<string, ChannelCandidate>
+) {
+  items.forEach((item, index) => {
+    const channelId = item.id?.channelId ?? item.snippet?.channelId;
+    if (!channelId) return;
+
+    const titleMatches = countKeywordMatches(
+      item.snippet?.channelTitle ?? item.snippet?.title ?? "",
+      keywords
+    );
+    const descriptionMatches = countKeywordMatches(item.snippet?.description ?? "", keywords);
+    const scoreDelta = 180 - index * 3 + titleMatches * 28 + descriptionMatches * 8;
+
+    upsertChannelCandidate(candidates, channelId, scoreDelta);
+  });
+}
+
 async function fetchYouTubeJson<T>(url: URL) {
   const response = await fetch(url, {
     next: { revalidate: 300 }
@@ -262,9 +359,7 @@ async function mapWithConcurrency<T, R>(
     }
   }
 
-  await Promise.all(
-    Array.from({ length: Math.min(limit, items.length) }, () => runWorker())
-  );
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, () => runWorker()));
 
   return results;
 }
@@ -373,6 +468,22 @@ async function fetchChannelActivityMetrics(apiKey: string, uploadsPlaylistId?: s
   }
 }
 
+async function fetchSearchItems(
+  apiKey: string,
+  query: string,
+  type: "video" | "channel",
+  maxResults: number
+) {
+  const searchUrl = new URL("https://www.googleapis.com/youtube/v3/search");
+  searchUrl.searchParams.set("part", "snippet");
+  searchUrl.searchParams.set("type", type);
+  searchUrl.searchParams.set("maxResults", String(maxResults));
+  searchUrl.searchParams.set("q", query);
+  searchUrl.searchParams.set("key", apiKey);
+
+  return fetchYouTubeJson<{ items?: YouTubeSearchItem[] }>(searchUrl);
+}
+
 export async function GET(request: Request) {
   const apiKey = process.env.YOUTUBE_API_KEY;
   const { searchParams } = new URL(request.url);
@@ -390,39 +501,50 @@ export async function GET(request: Request) {
   }
 
   try {
-    const searchUrl = new URL("https://www.googleapis.com/youtube/v3/search");
-    searchUrl.searchParams.set("part", "snippet");
-    searchUrl.searchParams.set("type", "channel");
-    searchUrl.searchParams.set("maxResults", "50");
-    searchUrl.searchParams.set("q", query);
-    searchUrl.searchParams.set("key", apiKey);
+    const keywords = buildQueryKeywords(query);
+    const [videoSearchData, channelSearchData] = await Promise.all([
+      fetchSearchItems(apiKey, query, "video", VIDEO_SEARCH_LIMIT),
+      fetchSearchItems(apiKey, query, "channel", CHANNEL_SEARCH_LIMIT)
+    ]);
 
-    const searchData = await fetchYouTubeJson<{ items?: YouTubeSearchItem[] }>(searchUrl);
-    const channelIds = Array.from(
-      new Set(searchData.items?.map((item) => item.id?.channelId).filter(Boolean) as string[])
-    );
+    const channelCandidates = new Map<string, ChannelCandidate>();
 
-    if (channelIds.length === 0) {
+    collectVideoSearchCandidates(videoSearchData.items ?? [], keywords, channelCandidates);
+    collectChannelSearchCandidates(channelSearchData.items ?? [], keywords, channelCandidates);
+
+    const sortedChannelIds = Array.from(channelCandidates.values())
+      .sort((left, right) => {
+        if (right.searchScore !== left.searchScore) {
+          return right.searchScore - left.searchScore;
+        }
+
+        return right.matchedVideoCount - left.matchedVideoCount;
+      })
+      .slice(0, MAX_CHANNEL_RESULTS)
+      .map((candidate) => candidate.channelId);
+
+    if (sortedChannelIds.length === 0) {
       return NextResponse.json({ creators: [] });
     }
 
     const channelsUrl = new URL("https://www.googleapis.com/youtube/v3/channels");
-    channelsUrl.searchParams.set(
-      "part",
-      "snippet,statistics,brandingSettings,contentDetails"
-    );
-    channelsUrl.searchParams.set("id", channelIds.join(","));
+    channelsUrl.searchParams.set("part", "snippet,statistics,brandingSettings,contentDetails");
+    channelsUrl.searchParams.set("id", sortedChannelIds.join(","));
     channelsUrl.searchParams.set("key", apiKey);
 
     const channelsData = await fetchYouTubeJson<{ items?: YouTubeChannelItem[] }>(channelsUrl);
-    const channels = channelsData.items ?? [];
+    const channelsById = new Map((channelsData.items ?? []).map((channel) => [channel.id, channel]));
+    const sortedChannels = sortedChannelIds
+      .map((channelId) => channelsById.get(channelId))
+      .filter((channel): channel is YouTubeChannelItem => Boolean(channel));
+
     const activityMetrics = await mapWithConcurrency(
-      channels,
+      sortedChannels,
       CONCURRENT_ACTIVITY_REQUESTS,
       (channel) => fetchChannelActivityMetrics(apiKey, channel.contentDetails?.relatedPlaylists?.uploads)
     );
 
-    const creators = channels.map((channel, index) => {
+    const creators = sortedChannels.map((channel, index) => {
       const subscriberCountRaw = channel.statistics?.hiddenSubscriberCount
         ? null
         : Number(channel.statistics?.subscriberCount ?? 0);

@@ -18,7 +18,7 @@ import {
   TrendingUp,
   Wand2
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type ActiveWindow = "any" | "7" | "30" | "90";
 type UploadFrequencyFilter = "any" | "weekly-3-plus" | "weekly" | "monthly";
@@ -266,13 +266,6 @@ function getSelectedRangeLabel(value: number, options: RangeOption[]) {
   return option.selectedLabel ?? option.label;
 }
 
-function buildSearchQuery(baseQuery: string, regions: string[], languages: string[]) {
-  const segments = [baseQuery.trim(), ...regions, ...languages].filter(Boolean);
-  const uniqueSegments = Array.from(new Set(segments));
-
-  return uniqueSegments.join(" ").trim();
-}
-
 function matchesSelectedGroup(value: string, selected: string[], groups: Record<string, string[]>) {
   if (selected.length === 0) return true;
   if (!value) return true;
@@ -400,8 +393,6 @@ export default function Home() {
   const [error, setError] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
   const [filterState, setFilterState] = useState<FilterState>(defaultFilterState);
-  const didRunInitialSearch = useRef(false);
-  const previousServerFilterSignature = useRef("");
 
   const searchCreators = useCallback(async (nextQuery: string) => {
     const trimmedQuery = nextQuery.trim();
@@ -441,45 +432,9 @@ export default function Home() {
     }
   }, []);
 
-  const runSearch = useCallback(
-    (nextBaseQuery: string) => {
-      searchCreators(buildSearchQuery(nextBaseQuery, filterState.regions, filterState.languages));
-    },
-    [filterState.languages, filterState.regions, searchCreators]
-  );
-
-  const serverFilterSignature = useMemo(
-    () =>
-      JSON.stringify({
-        regions: [...filterState.regions].sort(),
-        languages: [...filterState.languages].sort()
-      }),
-    [filterState.languages, filterState.regions]
-  );
-
   useEffect(() => {
-    if (didRunInitialSearch.current) {
-      return;
-    }
-
-    didRunInitialSearch.current = true;
-    previousServerFilterSignature.current = serverFilterSignature;
-    runSearch("Roblox 巴西");
-  }, [runSearch, serverFilterSignature]);
-
-  useEffect(() => {
-    if (!hasSearched) {
-      previousServerFilterSignature.current = serverFilterSignature;
-      return;
-    }
-
-    if (previousServerFilterSignature.current === serverFilterSignature) {
-      return;
-    }
-
-    previousServerFilterSignature.current = serverFilterSignature;
-    runSearch(query);
-  }, [hasSearched, query, runSearch, serverFilterSignature]);
+    searchCreators("Roblox 巴西");
+  }, [searchCreators]);
 
   const filteredCreators = useMemo(() => filterCreators(creators, filterState), [creators, filterState]);
 
@@ -511,7 +466,7 @@ export default function Home() {
           isLoading={isLoading}
           query={query}
           resultSummary={resultSummary}
-          searchCreators={runSearch}
+          searchCreators={searchCreators}
           setQuery={setQuery}
         />
         <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
@@ -522,7 +477,7 @@ export default function Home() {
             totalCreators={creators.length}
             isLoading={isLoading}
             hasSearched={hasSearched}
-            searchCreators={() => runSearch(query)}
+            searchCreators={() => searchCreators(query)}
             selectedCreatorId={selectedCreator?.channelId ?? null}
             setSelectedCreator={setSelectedCreator}
           />
