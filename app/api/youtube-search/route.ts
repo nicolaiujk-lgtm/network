@@ -56,6 +56,11 @@ type YouTubeVideoItem = {
   id: string;
   snippet?: {
     publishedAt?: string;
+    channelId?: string;
+    title?: string;
+    description?: string;
+    defaultAudioLanguage?: string;
+    defaultLanguage?: string;
   };
   statistics?: {
     viewCount?: string;
@@ -80,8 +85,12 @@ type ChannelCandidate = {
   matchedVideoCount: number;
 };
 
+type ChannelVideoLanguageSignal = {
+  dominantLanguageCode: string | null;
+  matchedVideoCount: number;
+};
+
 const VIDEO_SEARCH_LIMIT = 30;
-const CHANNEL_SEARCH_LIMIT = 20;
 const MAX_CHANNEL_RESULTS = 50;
 const RECENT_UPLOAD_LIMIT = 8;
 const CONCURRENT_ACTIVITY_REQUESTS = 6;
@@ -311,26 +320,6 @@ function collectVideoSearchCandidates(
   });
 }
 
-function collectChannelSearchCandidates(
-  items: YouTubeSearchItem[],
-  keywords: string[],
-  candidates: Map<string, ChannelCandidate>
-) {
-  items.forEach((item, index) => {
-    const channelId = item.id?.channelId ?? item.snippet?.channelId;
-    if (!channelId) return;
-
-    const titleMatches = countKeywordMatches(
-      item.snippet?.channelTitle ?? item.snippet?.title ?? "",
-      keywords
-    );
-    const descriptionMatches = countKeywordMatches(item.snippet?.description ?? "", keywords);
-    const scoreDelta = 180 - index * 3 + titleMatches * 28 + descriptionMatches * 8;
-
-    upsertChannelCandidate(candidates, channelId, scoreDelta);
-  });
-}
-
 async function fetchYouTubeJson<T>(url: URL) {
   const response = await fetch(url, {
     next: { revalidate: 300 }
@@ -471,17 +460,74 @@ async function fetchChannelActivityMetrics(apiKey: string, uploadsPlaylistId?: s
 async function fetchSearchItems(
   apiKey: string,
   query: string,
-  type: "video" | "channel",
   maxResults: number
 ) {
   const searchUrl = new URL("https://www.googleapis.com/youtube/v3/search");
   searchUrl.searchParams.set("part", "snippet");
-  searchUrl.searchParams.set("type", type);
+  searchUrl.searchParams.set("type", "video");
   searchUrl.searchParams.set("maxResults", String(maxResults));
   searchUrl.searchParams.set("q", query);
   searchUrl.searchParams.set("key", apiKey);
 
   return fetchYouTubeJson<{ items?: YouTubeSearchItem[] }>(searchUrl);
+}
+
+function getDominantLanguageCode(languageCodes: string[]) {
+  const counter = new Map<string, number>();
+
+  languageCodes.forEach((code) => {
+    const normalizedCode = code.split("-")[0]?.toLowerCase();
+    if (!normalizedCode) return;
+
+    counter.set(normalizedCode, (counter.get(normalizedCode) ?? 0) + 1);
+  });
+
+  const sorted = Array.from(counter.entries()).sort((left, right) => right[1] - left[1]);
+
+  return sorted[0]?.[0] ?? null;
+}
+
+async function fetchMatchedVideoLanguageSignals(apiKey: string, videoIds: string[]) {
+  const uniqueVideoIds = Array.from(new Set(videoIds)).filter(Boolean);
+  if (uniqueVideoIds.length === 0) {
+    return new Map<string, ChannelVideoLanguageSignal>();
+  }
+
+  const videosUrl = new URL("https://www.googleapis.com/youtube/v3/videos");
+  videosUrl.searchParams.set("part", "snippet");
+  videosUrl.searchParams.set("id", uniqueVideoIds.join(","));
+  videosUrl.searchParams.set("key", apiKey);
+
+  const videosData = await fetchYouTubeJson<{ items?: YouTubeVideoItem[] }>(videosUrl);
+  const languageCodesByChannel = new Map<string, string[]>();
+  const matchedVideoCountByChannel = new Map<string, number>();
+
+  (videosData.items ?? []).forEach((video) => {
+    const channelId = video.snippet?.channelId;
+    if (!channelId) return;
+
+    matchedVideoCountByChannel.set(channelId, (matchedVideoCountByChannel.get(channelId) ?? 0) + 1);
+
+    const languageCode = video.snippet?.defaultAudioLanguage ?? video.snippet?.defaultLanguage;
+    if (!languageCode) return;
+
+    const currentCodes = languageCodesByChannel.get(channelId) ?? [];
+    currentCodes.push(languageCode);
+    languageCodesByChannel.set(channelId, currentCodes);
+  });
+
+  const signals = new Map<string, ChannelVideoLanguageSignal>();
+
+  matchedVideoCountByChannel.forEach((matchedVideoCount, channelId) => {
+    const languageCodes = languageCodesByChannel.get(channelId) ?? [];
+
+    signals.set(channelId, {
+      dominantLanguageCode: getDominantLanguageCode(languageCodes),
+      matchedVideoCount
+    });
+  });
+
+  return signals;
 }
 
 export async function GET(request: Request) {
@@ -502,15 +548,15 @@ export async function GET(request: Request) {
 
   try {
     const keywords = buildQueryKeywords(query);
-    const [videoSearchData, channelSearchData] = await Promise.all([
-      fetchSearchItems(apiKey, query, "video", VIDEO_SEARCH_LIMIT),
-      fetchSearchItems(apiKey, query, "channel", CHANNEL_SEARCH_LIMIT)
-    ]);
+    const videoSearchData = await fetchSearchItems(apiKey, query, VIDEO_SEARCH_LIMIT);
 
     const channelCandidates = new Map<string, ChannelCandidate>();
+    const matchedVideoIds = (videoSearchData.items ?? [])
+      .map((item) => item.id?.videoId)
+      .filter((videoId): videoId is string => Boolean(videoId));
 
     collectVideoSearchCandidates(videoSearchData.items ?? [], keywords, channelCandidates);
-    collectChannelSearchCandidates(channelSearchData.items ?? [], keywords, channelCandidates);
+    const matchedVideoLanguageSignals = await fetchMatchedVideoLanguageSignals(apiKey, matchedVideoIds);
 
     const sortedChannelIds = Array.from(channelCandidates.values())
       .sort((left, right) => {
@@ -555,11 +601,14 @@ export async function GET(request: Request) {
         channel.statistics?.viewCount,
         channel.statistics?.videoCount
       );
+      const matchedVideoSignal = matchedVideoLanguageSignals.get(channel.id);
       const { region, regionCode } = getRegion(
         channel.snippet?.country ?? channel.brandingSettings?.channel?.country
       );
       const { language, languageCode } = getLanguage(
-        channel.snippet?.defaultLanguage ?? channel.brandingSettings?.channel?.defaultLanguage
+        matchedVideoSignal?.dominantLanguageCode ??
+          channel.snippet?.defaultLanguage ??
+          channel.brandingSettings?.channel?.defaultLanguage
       );
       const description = channel.snippet?.description ?? "";
       const emails = extractEmails(description);
