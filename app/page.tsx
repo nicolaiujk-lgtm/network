@@ -268,7 +268,7 @@ function getSelectedRangeLabel(value: number, options: RangeOption[]) {
 
 function matchesSelectedGroup(value: string, selected: string[], groups: Record<string, string[]>) {
   if (selected.length === 0) return true;
-  if (!value) return false;
+  if (!value) return true;
 
   return selected.some((item) => groups[item]?.includes(value));
 }
