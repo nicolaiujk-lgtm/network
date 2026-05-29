@@ -394,6 +394,14 @@ export default function Home() {
   const [hasSearched, setHasSearched] = useState(false);
   const [filterState, setFilterState] = useState<FilterState>(defaultFilterState);
 
+  useEffect(() => {
+    setQuery("");
+    setCreators([]);
+    setSelectedCreator(null);
+    setError("");
+    setHasSearched(false);
+  }, []);
+
   const searchCreators = useCallback(async (nextQuery: string) => {
     const trimmedQuery = nextQuery.trim();
     if (!trimmedQuery) {
@@ -530,6 +538,10 @@ function Hero({
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   placeholder="鎸夊崥涓汇€佹父鎴忋€佹爣绛炬垨鍏抽敭璇嶆悳绱?
                   className="w-full border-0 bg-transparent text-base font-medium text-slate-900 outline-none placeholder:text-slate-400"
                 />
