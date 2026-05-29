@@ -344,10 +344,15 @@ function inferLanguageCodeFromTitle(title: string) {
     fil: ["ang", "mga", "para", "paano", "sa", "ng", "at", "ito", "ako", "mo"]
   };
 
-  const scores = Object.entries(languageKeywordMap).map(([code, terms]) => {
-    const score = terms.reduce((sum, term) => sum + (words.includes(term) ? 1 : 0), 0);
-    return { code, score };
-  });
+  const scores = (Object.entries(languageKeywordMap) as Array<[string, string[]]>).map(
+    ([code, terms]) => {
+      const score = terms.reduce<number>(
+        (sum, term) => sum + (words.includes(term) ? 1 : 0),
+        0
+      );
+      return { code, score };
+    }
+  );
 
   scores.sort((left, right) => right.score - left.score);
 
