@@ -333,7 +333,7 @@ function inferLanguageCodeFromTitle(title: string) {
   if (/[ăâđêôơư]/u.test(normalizedTitle)) return "vi";
   if (/[ğışçöü]/u.test(normalizedTitle)) return "tr";
 
-  const words = normalizedTitle.match(/[a-z]+/g) ?? [];
+  const words: string[] = normalizedTitle.match(/[a-z]+/g) ?? [];
   if (words.length === 0) return null;
 
   const languageKeywordMap: Record<string, string[]> = {
@@ -474,7 +474,7 @@ async function fetchChannelActivityMetrics(apiKey: string, uploadsPlaylistId?: s
     playlistItemsUrl.searchParams.set("key", apiKey);
 
     const playlistData = await fetchYouTubeJson<{ items?: YouTubePlaylistItem[] }>(playlistItemsUrl);
-    const recentUploads = playlistData.items ?? [];
+    const recentUploads: YouTubePlaylistItem[] = playlistData.items ?? [];
     const videoIds = recentUploads
       .map((item) => item.contentDetails?.videoId)
       .filter((videoId): videoId is string => Boolean(videoId));
@@ -676,7 +676,7 @@ function buildMatchedVideoLanguageSignals(
     const languageCode = inferLanguageCodeFromTitle(item.snippet?.title ?? "");
     if (!languageCode) return;
 
-    const currentCodes = languageCodesByChannel.get(channelId) ?? [];
+    const currentCodes: string[] = languageCodesByChannel.get(channelId) ?? [];
     currentCodes.push(languageCode);
     languageCodesByChannel.set(channelId, currentCodes);
   });
@@ -684,7 +684,7 @@ function buildMatchedVideoLanguageSignals(
   const signals = new Map<string, ChannelVideoLanguageSignal>();
 
   matchedVideoCountByChannel.forEach((matchedVideoCount, channelId) => {
-    const languageCodes = languageCodesByChannel.get(channelId) ?? [];
+    const languageCodes: string[] = languageCodesByChannel.get(channelId) ?? [];
     const dominantLanguageCode = getDominantLanguageCode(languageCodes);
 
     signals.set(channelId, {

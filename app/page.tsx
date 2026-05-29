@@ -218,14 +218,16 @@ const uploadFrequencyThresholds: Record<Exclude<UploadFrequencyFilter, "any">, n
 
 function inferTags(query: string, description: string) {
   const source = `${query} ${description}`.toLowerCase();
-  const tags = [
+  const tagRules: Array<[string, string]> = [
     ["Roblox", "roblox"],
     ["Mobile", "mobile"],
     ["MMORPG", "mmorpg"],
     ["Sandbox", "sandbox"],
     ["Simulation", "simulation"],
     ["Anime", "anime"]
-  ]
+  ];
+
+  const tags = tagRules
     .filter(([, keyword]) => source.includes(keyword))
     .map(([tag]) => tag);
 
