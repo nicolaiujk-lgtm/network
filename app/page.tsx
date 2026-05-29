@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { motion } from "framer-motion";
 import {
@@ -95,22 +95,22 @@ type RangeOption = {
 };
 
 const filters = {
-  地区: ["Brazil", "United States", "Europe", "Korea", "Japan", "Thailand", "Vietnam", "Indonesia", "Philippines", "Hong Kong & Taiwan", "Russia", "Arab", "Turkey"],
-  语言: ["Portuguese", "Spanish", "English", "Korean", "Japanese", "Thai", "Vietnamese", "Indonesian", "Filipino", "Chinese", "Russian", "Arabic", "Turkish"]
+  鍦板尯: ["Brazil", "United States", "Europe", "Korea", "Japan", "Thailand", "Vietnam", "Indonesia", "Philippines", "Hong Kong & Taiwan", "Russia", "Arab", "Turkey"],
+  璇█: ["Portuguese", "Spanish", "English", "Korean", "Japanese", "Thai", "Vietnamese", "Indonesian", "Filipino", "Chinese", "Russian", "Arabic", "Turkish"]
 };
 
 const activeWindowOptions: Array<{ label: string; value: ActiveWindow }> = [
-  { label: "不限", value: "any" },
-  { label: "近 7 天", value: "7" },
-  { label: "近 30 天", value: "30" },
-  { label: "近 90 天", value: "90" }
+  { label: "涓嶉檺", value: "any" },
+  { label: "杩?7 澶?, value: "7" },
+  { label: "杩?30 澶?, value: "30" },
+  { label: "杩?90 澶?, value: "90" }
 ];
 
 const uploadFrequencyOptions: Array<{ label: string; value: UploadFrequencyFilter }> = [
-  { label: "不限", value: "any" },
-  { label: "每周 3 次以上", value: "weekly-3-plus" },
-  { label: "每周更新", value: "weekly" },
-  { label: "每月更新", value: "monthly" }
+  { label: "涓嶉檺", value: "any" },
+  { label: "姣忓懆 3 娆′互涓?, value: "weekly-3-plus" },
+  { label: "姣忓懆鏇存柊", value: "weekly" },
+  { label: "姣忔湀鏇存柊", value: "monthly" }
 ];
 
 const defaultFilterState: FilterState = {
@@ -135,7 +135,7 @@ const followerRangeOptions: RangeOption[] = [
 ];
 
 const engagementRangeOptions: RangeOption[] = [
-  { value: 0, label: "0", selectedLabel: "不限" },
+  { value: 0, label: "0", selectedLabel: "涓嶉檺" },
   { value: 5, label: "5%", selectedLabel: "5%+" },
   { value: 10, label: "10%", selectedLabel: "10%+" },
   { value: 15, label: "15%", selectedLabel: "15%+" }
@@ -201,34 +201,34 @@ function inferTags(query: string, description: string) {
   const source = `${query} ${description}`.toLowerCase();
   const tags = [
     ["Roblox", "roblox"],
-    ["移动游戏", "mobile"],
+    ["绉诲姩娓告垙", "mobile"],
     ["MMORPG", "mmorpg"],
-    ["沙盒", "sandbox"],
-    ["模拟经营", "simulation"],
-    ["二次元游戏", "anime"]
+    ["娌欑洅", "sandbox"],
+    ["妯℃嫙缁忚惀", "simulation"],
+    ["浜屾鍏冩父鎴?, "anime"]
   ]
     .filter(([, keyword]) => source.includes(keyword))
     .map(([tag]) => tag);
 
-  return tags.length > 0 ? tags.slice(0, 3) : ["YouTube", "游戏内容", "创作者"];
+  return tags.length > 0 ? tags.slice(0, 3) : ["YouTube", "娓告垙鍐呭", "鍒涗綔鑰?];
 }
 
 function normalizeCreator(item: YouTubeCreatorResponse, query: string, index: number): Creator {
   return {
     name: item.channelTitle,
-    handle: `频道 ID：${item.channelId}`,
+    handle: `棰戦亾 ID锛?{item.channelId}`,
     channelId: item.channelId,
     channelUrl: item.channelUrl,
     profileImage: item.profileImage,
     platform: "YouTube",
-    flag: "🌐",
+    flag: "馃寪",
     region: item.region,
     regionCode: item.regionCode,
     language: item.language,
     languageCode: item.languageCode,
     followers: item.subscriberCount,
     followersCount: item.subscriberCountRaw,
-    avgViews: item.averageViews ?? "暂未提供",
+    avgViews: item.averageViews ?? "鏆傛湭鎻愪緵",
     avgViewsCount: item.averageViewsRaw,
     engagement: item.engagementRate,
     engagementRateRaw: item.engagementRateRaw,
@@ -241,7 +241,7 @@ function normalizeCreator(item: YouTubeCreatorResponse, query: string, index: nu
     uploadFrequency: item.uploadFrequency,
     uploadsPerWeekRaw: item.uploadsPerWeekRaw,
     score: Math.max(82, 96 - index * 3),
-    description: item.description || "该频道暂未提供简介，可进入 YouTube 主页查看完整内容与近期视频。"
+    description: item.description || "璇ラ閬撴殏鏈彁渚涚畝浠嬶紝鍙繘鍏?YouTube 涓婚〉鏌ョ湅瀹屾暣鍐呭涓庤繎鏈熻棰戙€?
   };
 }
 
@@ -336,29 +336,29 @@ function escapeCsvCell(value: string | number | null | undefined) {
 
 function exportCreatorsToCsv(creators: Creator[], query: string) {
   const headers = [
-    "名字",
-    "频道链接",
-    "国家/地区",
-    "地区代码",
-    "语言",
-    "粉丝数量",
-    "粉丝数原始值",
-    "平均播放",
-    "互动率",
-    "最近活跃",
-    "更新频率",
-    "邮箱",
-    "频道ID",
-    "频道简介"
+    "鍚嶅瓧",
+    "棰戦亾閾炬帴",
+    "鍥藉/鍦板尯",
+    "鍦板尯浠ｇ爜",
+    "璇█",
+    "绮変笣鏁伴噺",
+    "绮変笣鏁板師濮嬪€?,
+    "骞冲潎鎾斁",
+    "浜掑姩鐜?,
+    "鏈€杩戞椿璺?,
+    "鏇存柊棰戠巼",
+    "閭",
+    "棰戦亾ID",
+    "棰戦亾绠€浠?
   ];
   const rows = creators.map((creator) => [
     creator.name,
     creator.channelUrl,
     creator.region,
-    creator.regionCode || "未公开",
+    creator.regionCode || "鏈叕寮€",
     creator.language,
     creator.followers,
-    creator.followersCount ?? "未公开",
+    creator.followersCount ?? "鏈叕寮€",
     creator.avgViews,
     creator.engagement,
     creator.lastUpload,
@@ -378,7 +378,7 @@ function exportCreatorsToCsv(creators: Creator[], query: string) {
   const safeQuery = query.trim().replace(/[\\/:*?"<>|]+/g, "-") || "youtube-creators";
 
   link.href = url;
-  link.download = `${safeQuery}-博主搜索结果.csv`;
+  link.download = `${safeQuery}-鍗氫富鎼滅储缁撴灉.csv`;
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -386,7 +386,7 @@ function exportCreatorsToCsv(creators: Creator[], query: string) {
 }
 
 export default function Home() {
-  const [query, setQuery] = useState("Roblox 巴西");
+  const [query, setQuery] = useState("");
   const [creators, setCreators] = useState<Creator[]>([]);
   const [selectedCreator, setSelectedCreator] = useState<Creator | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -415,7 +415,7 @@ export default function Home() {
       };
 
       if (!response.ok) {
-        throw new Error(data.error ?? "YouTube 检索失败，请稍后重试。");
+        throw new Error(data.error ?? "YouTube 妫€绱㈠け璐ワ紝璇风◢鍚庨噸璇曘€?);
       }
 
       const normalizedCreators = (data.creators ?? []).map((item, index) =>
@@ -426,15 +426,11 @@ export default function Home() {
     } catch (searchError) {
       setCreators([]);
       setSelectedCreator(null);
-      setError(searchError instanceof Error ? searchError.message : "YouTube 检索失败，请稍后重试。");
+      setError(searchError instanceof Error ? searchError.message : "YouTube 妫€绱㈠け璐ワ紝璇风◢鍚庨噸璇曘€?);
     } finally {
       setIsLoading(false);
     }
   }, []);
-
-  useEffect(() => {
-    searchCreators("Roblox 巴西");
-  }, [searchCreators]);
 
   const filteredCreators = useMemo(() => filterCreators(creators, filterState), [creators, filterState]);
 
@@ -449,13 +445,14 @@ export default function Home() {
   }, [filteredCreators]);
 
   const resultSummary = useMemo(() => {
-    if (isLoading) return "正在从 YouTube API 获取频道数据";
-    if (error) return "检索遇到问题";
-    if (creators.length === 0 && hasSearched) return "暂无匹配频道";
+    if (isLoading) return "姝ｅ湪浠?YouTube API 鑾峰彇棰戦亾鏁版嵁";
+    if (error) return "妫€绱㈤亣鍒伴棶棰?;
+    if (!hasSearched) return "请输入关键词后开始搜索";
+    if (creators.length === 0 && hasSearched) return "鏆傛棤鍖归厤棰戦亾";
     if (filteredCreators.length !== creators.length) {
-      return `${filteredCreators.length} / ${creators.length} 个频道符合当前筛选`;
+      return `${filteredCreators.length} / ${creators.length} 涓閬撶鍚堝綋鍓嶇瓫閫塦;
     }
-    return `${creators.length} 个 YouTube 频道结果`;
+    return `${creators.length} 涓?YouTube 棰戦亾缁撴灉`;
   }, [creators.length, error, filteredCreators.length, hasSearched, isLoading]);
 
   return (
@@ -510,17 +507,15 @@ function Hero({
         <div className="rounded-lg border border-white/10 bg-white/[0.98] p-6 shadow-card sm:p-8">
           <div className="flex flex-wrap items-center gap-3">
             <span className="rounded-md bg-indigo-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
-              V1 博主发现中枢
+              V1 鍗氫富鍙戠幇涓灑
             </span>
             <span className="flex items-center gap-2 text-sm font-medium text-slate-500">
               <Activity className="size-4 text-success" />
-              YouTube API 实时频道检索
-            </span>
+              YouTube API 瀹炴椂棰戦亾妫€绱?            </span>
           </div>
           <h1 className="mt-6 max-w-3xl text-4xl font-semibold tracking-normal text-slate-950 sm:text-5xl">
-            为你的新游戏快速找到合适博主
-          </h1>
-          <p className="mt-4 text-lg text-slate-600">通过搜索、标签筛选和相似推荐，快速发现高匹配度博主。</p>
+            涓轰綘鐨勬柊娓告垙蹇€熸壘鍒板悎閫傚崥涓?          </h1>
+          <p className="mt-4 text-lg text-slate-600">閫氳繃鎼滅储銆佹爣绛剧瓫閫夊拰鐩镐技鎺ㄨ崘锛屽揩閫熷彂鐜伴珮鍖归厤搴﹀崥涓汇€?/p>
 
           <form
             className="mt-8 rounded-lg border border-slate-200 bg-slate-50 p-2 shadow-inner"
@@ -535,7 +530,7 @@ function Hero({
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder="按博主、游戏、标签或关键词搜索"
+                  placeholder="鎸夊崥涓汇€佹父鎴忋€佹爣绛炬垨鍏抽敭璇嶆悳绱?
                   className="w-full border-0 bg-transparent text-base font-medium text-slate-900 outline-none placeholder:text-slate-400"
                 />
               </label>
@@ -545,7 +540,7 @@ function Hero({
                 type="submit"
               >
                 {isLoading ? <Loader2 className="size-5 animate-spin" /> : <SlidersHorizontal className="size-5" />}
-                {isLoading ? "检索中" : "检索博主"}
+                {isLoading ? "妫€绱腑" : "妫€绱㈠崥涓?}
               </button>
             </div>
           </form>
@@ -555,21 +550,20 @@ function Hero({
 
         <div className="rounded-lg border border-white/10 bg-white/[0.98] p-6 shadow-card">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-wide text-primary">数据导出</p>
-            <h2 className="mt-2 text-2xl font-semibold text-slate-950">导出本次搜索结果</h2>
+            <p className="text-sm font-semibold uppercase tracking-wide text-primary">鏁版嵁瀵煎嚭</p>
+            <h2 className="mt-2 text-2xl font-semibold text-slate-950">瀵煎嚭鏈鎼滅储缁撴灉</h2>
             <p className="mt-3 text-sm leading-6 text-slate-600">
-              导出所有 YouTube API 搜索出的博主数据，包含名字、频道链接、国家/地区、粉丝数量和邮箱。
-            </p>
+              瀵煎嚭鎵€鏈?YouTube API 鎼滅储鍑虹殑鍗氫富鏁版嵁锛屽寘鍚悕瀛椼€侀閬撻摼鎺ャ€佸浗瀹?鍦板尯銆佺矇涓濇暟閲忓拰閭銆?            </p>
           </div>
 
           <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-slate-950">可导出频道</p>
-                <p className="mt-1 text-xs text-slate-500">{exportCreators.length} 个频道 · CSV 文件</p>
+                <p className="text-sm font-semibold text-slate-950">鍙鍑洪閬?/p>
+                <p className="mt-1 text-xs text-slate-500">{exportCreators.length} 涓閬?路 CSV 鏂囦欢</p>
               </div>
               <span className="rounded-md bg-indigo-50 px-2 py-1 text-xs font-semibold text-primary">
-                全量搜索结果
+                鍏ㄩ噺鎼滅储缁撴灉
               </span>
             </div>
           </div>
@@ -580,12 +574,11 @@ function Hero({
             onClick={() => exportCreatorsToCsv(exportCreators, query)}
           >
             <Download className="size-4" />
-            {hasExportData ? "导出 CSV 文件" : "暂无可导出数据"}
+            {hasExportData ? "瀵煎嚭 CSV 鏂囦欢" : "鏆傛棤鍙鍑烘暟鎹?}
           </button>
 
           <div className="mt-4 rounded-lg border border-dashed border-slate-200 bg-white p-4 text-xs leading-5 text-slate-500">
-            邮箱来自频道简介自动识别；若频道未公开邮箱，文件中会显示“未公开”。
-          </div>
+            閭鏉ヨ嚜棰戦亾绠€浠嬭嚜鍔ㄨ瘑鍒紱鑻ラ閬撴湭鍏紑閭锛屾枃浠朵腑浼氭樉绀衡€滄湭鍏紑鈥濄€?          </div>
         </div>
       </div>
     </section>
@@ -619,36 +612,35 @@ function FilterPanel({
     <aside className="rounded-lg border border-white/10 bg-white p-5 shadow-card xl:sticky xl:top-8 xl:self-start">
       <div className="flex items-center justify-between border-b border-slate-200 pb-4">
         <div>
-          <p className="text-sm font-semibold text-slate-950">筛选面板</p>
-          <p className="mt-1 text-xs text-slate-500">按上线匹配度精准筛选博主</p>
+          <p className="text-sm font-semibold text-slate-950">绛涢€夐潰鏉?/p>
+          <p className="mt-1 text-xs text-slate-500">鎸変笂绾垮尮閰嶅害绮惧噯绛涢€夊崥涓?/p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={clearFilters}
             className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:border-indigo-200 hover:text-primary"
           >
-            清空筛选
-          </button>
+            娓呯┖绛涢€?          </button>
           <Filter className="size-5 text-primary" />
         </div>
       </div>
 
       <div className="thin-scrollbar mt-5 max-h-none space-y-6 overflow-auto xl:max-h-[720px]">
         <FilterGroup
-          label="地区"
+          label="鍦板尯"
           onToggle={(value) => toggleFilter("regions", value)}
-          options={filters.地区}
+          options={filters.鍦板尯}
           selectedOptions={filterState.regions}
         />
         <FilterGroup
-          label="语言"
+          label="璇█"
           onToggle={(value) => toggleFilter("languages", value)}
-          options={filters.语言}
+          options={filters.璇█}
           selectedOptions={filterState.languages}
         />
 
         <RangeBlock
-          label="粉丝量"
+          label="绮変笣閲?
           options={followerRangeOptions}
           onChange={(value) =>
             setFilterState((current) => ({
@@ -660,7 +652,7 @@ function FilterPanel({
           valueLabel={getSelectedRangeLabel(filterState.minFollowers, followerRangeOptions)}
         />
         <RangeBlock
-          label="互动率"
+          label="浜掑姩鐜?
           options={engagementRangeOptions}
           onChange={(value) =>
             setFilterState((current) => ({
@@ -672,7 +664,7 @@ function FilterPanel({
           valueLabel={getSelectedRangeLabel(filterState.minEngagementRate, engagementRangeOptions)}
         />
         <RangeBlock
-          label="平均播放"
+          label="骞冲潎鎾斁"
           options={averageViewRangeOptions}
           onChange={(value) =>
             setFilterState((current) => ({
@@ -687,8 +679,7 @@ function FilterPanel({
         <div>
           <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
             <CalendarDays className="size-4 text-slate-400" />
-            最近活跃时间
-          </label>
+            鏈€杩戞椿璺冩椂闂?          </label>
           <select
             className="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-primary"
             value={filterState.activeWithinDays}
@@ -710,7 +701,7 @@ function FilterPanel({
         <div>
           <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
             <TrendingUp className="size-4 text-slate-400" />
-            更新频率
+            鏇存柊棰戠巼
           </label>
           <select
             className="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-primary"
@@ -746,19 +737,19 @@ function FilterGroup({
   selectedOptions: string[];
 }) {
   const iconMap: Record<string, typeof Globe2> = {
-    地区: Globe2,
-    语言: Languages
+    鍦板尯: Globe2,
+    璇█: Languages
   };
   const Icon = iconMap[label] ?? Tags;
   const placeholderMap: Record<string, string> = {
-    地区: "Select Region",
-    语言: "Select Language"
+    鍦板尯: "Select Region",
+    璇█: "Select Language"
   };
   const summary =
     selectedOptions.length === 0
       ? placeholderMap[label] ?? `Select ${label}`
       : selectedOptions.length <= 2
-        ? selectedOptions.join("、")
+        ? selectedOptions.join("銆?)
         : `Selected ${selectedOptions.length}`;
 
   return (
@@ -884,11 +875,11 @@ function SearchResults({
     <section className="rounded-lg border border-white/10 bg-white p-5 shadow-card sm:p-6">
       <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-primary">博主检索</p>
-          <h2 className="mt-2 text-2xl font-semibold text-slate-950">YouTube 频道实时检索结果</h2>
+          <p className="text-sm font-semibold uppercase tracking-wide text-primary">鍗氫富妫€绱?/p>
+          <h2 className="mt-2 text-2xl font-semibold text-slate-950">YouTube 棰戦亾瀹炴椂妫€绱㈢粨鏋?/h2>
         </div>
         <div className="grid grid-cols-3 gap-2 rounded-lg bg-slate-100 p-1">
-          {["匹配度", "订阅量", "频道质量"].map((item, index) => (
+          {["鍖归厤搴?, "璁㈤槄閲?, "棰戦亾璐ㄩ噺"].map((item, index) => (
             <button
               key={item}
               className={`rounded-md px-3 py-2 text-sm font-semibold transition ${
@@ -945,10 +936,10 @@ function EmptyState({ hasRawResults }: { hasRawResults: boolean }) {
     <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
       <Search className="mx-auto size-9 text-slate-300" />
       <h3 className="mt-4 text-lg font-semibold text-slate-950">
-        {hasRawResults ? "当前筛选条件下没有匹配频道" : "没有找到匹配的 YouTube 频道"}
+        {hasRawResults ? "褰撳墠绛涢€夋潯浠朵笅娌℃湁鍖归厤棰戦亾" : "娌℃湁鎵惧埌鍖归厤鐨?YouTube 棰戦亾"}
       </h3>
       <p className="mt-2 text-sm text-slate-500">
-        {hasRawResults ? "放宽筛选条件后再试一次。" : "换一个游戏、地区或内容关键词再试一次。"}
+        {hasRawResults ? "鏀惧绛涢€夋潯浠跺悗鍐嶈瘯涓€娆°€? : "鎹竴涓父鎴忋€佸湴鍖烘垨鍐呭鍏抽敭璇嶅啀璇曚竴娆°€?}
       </p>
     </div>
   );
@@ -957,14 +948,13 @@ function EmptyState({ hasRawResults }: { hasRawResults: boolean }) {
 function ErrorState({ error, onRetry }: { error: string; onRetry: () => void }) {
   return (
     <div className="rounded-lg border border-red-100 bg-red-50 p-5">
-      <h3 className="font-semibold text-red-700">YouTube API 请求失败</h3>
+      <h3 className="font-semibold text-red-700">YouTube API 璇锋眰澶辫触</h3>
       <p className="mt-2 text-sm leading-6 text-red-600">{error}</p>
       <button
         onClick={onRetry}
         className="mt-4 rounded-md bg-white px-4 py-2 text-sm font-semibold text-red-600 shadow-sm transition hover:-translate-y-0.5"
       >
-        重新检索
-      </button>
+        閲嶆柊妫€绱?      </button>
     </div>
   );
 }
@@ -997,7 +987,7 @@ function CreatorCard({
             </div>
             <p className="mt-1 truncate text-sm font-medium text-slate-500">{creator.handle}</p>
             <p className="mt-2 text-sm font-medium text-slate-600">
-              邮箱：<span className={creator.email === "未公开" ? "text-slate-400" : "text-primary"}>{creator.email}</span>
+              閭锛?span className={creator.email === "鏈叕寮€" ? "text-slate-400" : "text-primary"}>{creator.email}</span>
             </p>
             <p className="mt-3 line-clamp-2 max-w-2xl text-sm leading-6 text-slate-600">{creator.description}</p>
             <div className="mt-4 flex flex-wrap gap-2">
@@ -1021,34 +1011,34 @@ function CreatorCard({
 
         <div>
           <div className="grid grid-cols-3 gap-2">
-            <Metric label="粉丝量" value={creator.followers} />
-            <Metric label="平均播放" value={creator.avgViews} />
-            <Metric label="互动率" value={creator.engagement} />
+            <Metric label="绮変笣閲? value={creator.followers} />
+            <Metric label="骞冲潎鎾斁" value={creator.avgViews} />
+            <Metric label="浜掑姩鐜? value={creator.engagement} />
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <div className="rounded-lg bg-slate-50 p-3">
-              <p className="text-xs font-medium text-slate-500">最近活跃</p>
+              <p className="text-xs font-medium text-slate-500">鏈€杩戞椿璺?/p>
               <p className="mt-1 text-sm font-semibold text-slate-950">{creator.lastUpload}</p>
-              <p className="mt-1 text-xs text-slate-500">更新频率：{creator.uploadFrequency}</p>
+              <p className="mt-1 text-xs text-slate-500">鏇存柊棰戠巼锛歿creator.uploadFrequency}</p>
             </div>
             <div className="rounded-lg bg-gradient-to-br from-indigo-50 to-blue-50 p-3">
-              <p className="text-xs font-medium text-slate-500">匹配度</p>
-              <p className="mt-1 text-sm font-semibold text-primary">{creator.score}% 匹配</p>
+              <p className="text-xs font-medium text-slate-500">鍖归厤搴?/p>
+              <p className="mt-1 text-sm font-semibold text-primary">{creator.score}% 鍖归厤</p>
             </div>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             <ActionButton
-              label="查看主页"
+              label="鏌ョ湅涓婚〉"
               icon={BarChart3}
               onClick={() => window.open(creator.channelUrl, "_blank", "noopener,noreferrer")}
             />
             <ActionButton
-              label={isRecommendationOpen ? "收起相似博主" : "查找相似博主"}
+              label={isRecommendationOpen ? "鏀惰捣鐩镐技鍗氫富" : "鏌ユ壘鐩镐技鍗氫富"}
               icon={Wand2}
               primary
               onClick={() => setSelectedCreator(isRecommendationOpen ? null : creator)}
             />
-            <ActionButton label="收藏博主" icon={Bookmark} />
+            <ActionButton label="鏀惰棌鍗氫富" icon={Bookmark} />
           </div>
         </div>
       </div>
@@ -1057,10 +1047,10 @@ function CreatorCard({
         <div className="mt-5 border-t border-slate-200 pt-5">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-primary">相似博主推荐</p>
-              <h4 className="mt-1 text-lg font-semibold text-slate-950">与 {creator.name} 相近的 YouTube 博主</h4>
+              <p className="text-sm font-semibold uppercase tracking-wide text-primary">鐩镐技鍗氫富鎺ㄨ崘</p>
+              <h4 className="mt-1 text-lg font-semibold text-slate-950">涓?{creator.name} 鐩歌繎鐨?YouTube 鍗氫富</h4>
             </div>
-            <p className="text-sm text-slate-500">在当前卡片内直接展开，方便快速对比。</p>
+            <p className="text-sm text-slate-500">鍦ㄥ綋鍓嶅崱鐗囧唴鐩存帴灞曞紑锛屾柟渚垮揩閫熷姣斻€?/p>
           </div>
 
           <div className="mt-4 grid gap-3 lg:grid-cols-3">
@@ -1093,8 +1083,8 @@ function InlineRecommendationCard({ creator }: { creator: Creator }) {
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-2">
-        <Metric label="粉丝量" value={creator.followers} />
-        <Metric label="平均播放" value={creator.avgViews} />
+        <Metric label="绮変笣閲? value={creator.followers} />
+        <Metric label="骞冲潎鎾斁" value={creator.avgViews} />
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
@@ -1110,7 +1100,7 @@ function InlineRecommendationCard({ creator }: { creator: Creator }) {
         className="mt-4 flex min-h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-indigo-200 hover:text-primary"
       >
         <BarChart3 className="size-4" />
-        查看主页
+        鏌ョ湅涓婚〉
       </button>
     </motion.article>
   );
@@ -1126,7 +1116,7 @@ function Avatar({ creator, large = false }: { creator: Creator; large?: boolean 
   if (creator.profileImage) {
     return (
       <img
-        alt={`${creator.name} 头像`}
+        alt={`${creator.name} 澶村儚`}
         className={`shrink-0 rounded-lg object-cover shadow-lg shadow-indigo-500/10 ${
           large ? "size-20" : "size-12"
         }`}
@@ -1140,7 +1130,7 @@ function Avatar({ creator, large = false }: { creator: Creator; large?: boolean 
       className={`grid shrink-0 place-items-center rounded-lg bg-gradient-to-br from-slate-900 via-primary to-secondary font-bold text-white shadow-lg shadow-indigo-500/20 ${
         large ? "size-20 text-xl" : "size-12 text-sm"
       }`}
-      aria-label={`${creator.name} 头像`}
+      aria-label={`${creator.name} 澶村儚`}
     >
       {initials}
     </div>
@@ -1189,3 +1179,4 @@ function ActionButton({
     </button>
   );
 }
+

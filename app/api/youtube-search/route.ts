@@ -13,6 +13,11 @@ type YouTubeSearchItem = {
   };
 };
 
+type YouTubeSearchResponse = {
+  items?: YouTubeSearchItem[];
+  nextPageToken?: string;
+};
+
 type YouTubeChannelItem = {
   id: string;
   snippet?: {
@@ -91,8 +96,10 @@ type ChannelVideoLanguageSignal = {
   matchedVideoCount: number;
 };
 
-const VIDEO_SEARCH_LIMIT = 50;
-const MAX_CHANNEL_RESULTS = 50;
+const VIDEO_SEARCH_PAGE_SIZE = 50;
+const MAX_VIDEO_SEARCH_PAGES = 8;
+const MAX_CHANNEL_RESULTS = 200;
+const CHANNEL_DETAILS_BATCH_SIZE = 50;
 const RECENT_UPLOAD_LIMIT = 8;
 const CONCURRENT_ACTIVITY_REQUESTS = 6;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -552,7 +559,8 @@ async function fetchChannelActivityMetrics(apiKey: string, uploadsPlaylistId?: s
 async function fetchSearchItems(
   apiKey: string,
   query: string,
-  maxResults: number
+  maxResults: number,
+  pageToken?: string
 ) {
   const searchUrl = new URL("https://www.googleapis.com/youtube/v3/search");
   searchUrl.searchParams.set("part", "snippet");
@@ -560,8 +568,61 @@ async function fetchSearchItems(
   searchUrl.searchParams.set("maxResults", String(maxResults));
   searchUrl.searchParams.set("q", query);
   searchUrl.searchParams.set("key", apiKey);
+  if (pageToken) {
+    searchUrl.searchParams.set("pageToken", pageToken);
+  }
 
-  return fetchYouTubeJson<{ items?: YouTubeSearchItem[] }>(searchUrl);
+  return fetchYouTubeJson<YouTubeSearchResponse>(searchUrl);
+}
+
+async function fetchPaginatedSearchItems(apiKey: string, query: string) {
+  const items: YouTubeSearchItem[] = [];
+  let nextPageToken: string | undefined;
+
+  for (let pageIndex = 0; pageIndex < MAX_VIDEO_SEARCH_PAGES; pageIndex += 1) {
+    const searchData = await fetchSearchItems(
+      apiKey,
+      query,
+      VIDEO_SEARCH_PAGE_SIZE,
+      nextPageToken
+    );
+
+    items.push(...(searchData.items ?? []));
+    nextPageToken = searchData.nextPageToken;
+
+    if (!nextPageToken) {
+      break;
+    }
+  }
+
+  return items;
+}
+
+function chunkArray<T>(items: T[], size: number) {
+  const chunks: T[][] = [];
+
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+
+  return chunks;
+}
+
+async function fetchChannelsByIds(apiKey: string, channelIds: string[]) {
+  const channelEntries = await Promise.all(
+    chunkArray(channelIds, CHANNEL_DETAILS_BATCH_SIZE).map(async (channelIdChunk) => {
+      const channelsUrl = new URL("https://www.googleapis.com/youtube/v3/channels");
+      channelsUrl.searchParams.set("part", "snippet,statistics,brandingSettings,contentDetails");
+      channelsUrl.searchParams.set("id", channelIdChunk.join(","));
+      channelsUrl.searchParams.set("key", apiKey);
+
+      const channelsData = await fetchYouTubeJson<{ items?: YouTubeChannelItem[] }>(channelsUrl);
+
+      return channelsData.items ?? [];
+    })
+  );
+
+  return channelEntries.flat();
 }
 
 function getDominantLanguageCode(languageCodes: string[]) {
@@ -642,13 +703,13 @@ export async function GET(request: Request) {
 
   try {
     const keywords = buildQueryKeywords(query);
-    const videoSearchData = await fetchSearchItems(apiKey, query, VIDEO_SEARCH_LIMIT);
+    const videoSearchItems = await fetchPaginatedSearchItems(apiKey, query);
 
     const channelCandidates = new Map<string, ChannelCandidate>();
 
-    collectVideoSearchCandidates(videoSearchData.items ?? [], query, keywords, channelCandidates);
+    collectVideoSearchCandidates(videoSearchItems, query, keywords, channelCandidates);
     const matchedVideoLanguageSignals = buildMatchedVideoLanguageSignals(
-      videoSearchData.items ?? [],
+      videoSearchItems,
       query,
       keywords
     );
@@ -668,13 +729,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ creators: [] });
     }
 
-    const channelsUrl = new URL("https://www.googleapis.com/youtube/v3/channels");
-    channelsUrl.searchParams.set("part", "snippet,statistics,brandingSettings,contentDetails");
-    channelsUrl.searchParams.set("id", sortedChannelIds.join(","));
-    channelsUrl.searchParams.set("key", apiKey);
-
-    const channelsData = await fetchYouTubeJson<{ items?: YouTubeChannelItem[] }>(channelsUrl);
-    const channelsById = new Map((channelsData.items ?? []).map((channel) => [channel.id, channel]));
+    const channelItems = await fetchChannelsByIds(apiKey, sortedChannelIds);
+    const channelsById = new Map(channelItems.map((channel) => [channel.id, channel]));
     const sortedChannels = sortedChannelIds
       .map((channelId) => channelsById.get(channelId))
       .filter((channel): channel is YouTubeChannelItem => Boolean(channel));
