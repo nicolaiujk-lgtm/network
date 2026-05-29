@@ -105,77 +105,78 @@ const CONCURRENT_ACTIVITY_REQUESTS = 6;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 const regionNames: Record<string, string> = {
-  BR: "巴西",
-  US: "美国",
-  KR: "韩国",
-  JP: "日本",
-  TH: "泰国",
-  VN: "越南",
-  ID: "印度尼西亚",
-  PH: "菲律宾",
-  HK: "港台",
-  TW: "港台",
-  MO: "港台",
-  RU: "俄罗斯",
-  TR: "土耳其",
-  AE: "阿拉伯",
-  SA: "阿拉伯",
-  EG: "阿拉伯",
-  QA: "阿拉伯",
-  KW: "阿拉伯",
-  BH: "阿拉伯",
-  OM: "阿拉伯",
-  JO: "阿拉伯",
-  LB: "阿拉伯",
-  IQ: "阿拉伯",
-  MA: "阿拉伯",
-  DZ: "阿拉伯",
-  TN: "阿拉伯",
-  GB: "欧洲",
-  DE: "欧洲",
-  FR: "欧洲",
-  ES: "欧洲",
-  IT: "欧洲",
-  NL: "欧洲",
-  PL: "欧洲",
-  SE: "欧洲",
-  NO: "欧洲",
-  DK: "欧洲",
-  FI: "欧洲",
-  PT: "欧洲"
+  BR: "Brazil",
+  US: "United States",
+  KR: "Korea",
+  JP: "Japan",
+  TH: "Thailand",
+  VN: "Vietnam",
+  ID: "Indonesia",
+  PH: "Philippines",
+  HK: "Hong Kong & Taiwan",
+  TW: "Hong Kong & Taiwan",
+  MO: "Hong Kong & Taiwan",
+  RU: "Russia",
+  TR: "Turkey",
+  AE: "Arab",
+  SA: "Arab",
+  EG: "Arab",
+  QA: "Arab",
+  KW: "Arab",
+  BH: "Arab",
+  OM: "Arab",
+  JO: "Arab",
+  LB: "Arab",
+  IQ: "Arab",
+  MA: "Arab",
+  DZ: "Arab",
+  TN: "Arab",
+  GB: "Europe",
+  DE: "Europe",
+  FR: "Europe",
+  ES: "Europe",
+  IT: "Europe",
+  NL: "Europe",
+  PL: "Europe",
+  SE: "Europe",
+  NO: "Europe",
+  DK: "Europe",
+  FI: "Europe",
+  PT: "Europe"
 };
 
 const languageNames: Record<string, string> = {
-  pt: "葡萄牙语",
-  ar: "阿拉伯语",
-  en: "英语",
-  es: "西班牙语",
-  ko: "韩语",
-  ja: "日语",
-  th: "泰语",
-  vi: "越南语",
-  id: "印尼语",
-  tl: "菲律宾语",
-  fil: "菲律宾语",
-  zh: "中文",
-  ru: "俄语",
-  tr: "土耳其语"
+  pt: "Portuguese",
+  ar: "Arabic",
+  en: "English",
+  es: "Spanish",
+  ko: "Korean",
+  ja: "Japanese",
+  th: "Thai",
+  vi: "Vietnamese",
+  id: "Indonesian",
+  tl: "Filipino",
+  fil: "Filipino",
+  zh: "Chinese",
+  ru: "Russian",
+  tr: "Turkish"
 };
 
 const fallbackActivityMetrics: ChannelActivityMetrics = {
-  engagementRate: "暂未提供",
+  engagementRate: "Unavailable",
   engagementRateRaw: null,
-  lastUpload: "暂未提供",
+  lastUpload: "Unavailable",
   lastUploadAt: null,
   lastUploadDaysAgo: null,
-  uploadFrequency: "暂未提供",
+  uploadFrequency: "Unavailable",
   uploadsPerWeekRaw: null
 };
 
 function formatNumber(value?: string) {
-  if (!value) return "未公开";
+  if (!value) return "Hidden";
+
   const number = Number(value);
-  if (!Number.isFinite(number)) return "未公开";
+  if (!Number.isFinite(number)) return "Hidden";
 
   return new Intl.NumberFormat("en", {
     notation: "compact",
@@ -185,7 +186,7 @@ function formatNumber(value?: string) {
 
 function formatPercentage(value: number | null) {
   const safeValue = value ?? 0;
-  if (value === null || !Number.isFinite(safeValue)) return "暂未提供";
+  if (value === null || !Number.isFinite(safeValue)) return "Unavailable";
 
   return `${new Intl.NumberFormat("en", {
     minimumFractionDigits: safeValue >= 10 ? 0 : 1,
@@ -195,7 +196,7 @@ function formatPercentage(value: number | null) {
 
 function getRegion(code?: string) {
   const normalizedCode = code?.toUpperCase();
-  if (!normalizedCode) return { region: "未公开", regionCode: "" };
+  if (!normalizedCode) return { region: "Unknown", regionCode: "" };
 
   return {
     region: regionNames[normalizedCode] ?? normalizedCode,
@@ -205,7 +206,7 @@ function getRegion(code?: string) {
 
 function getLanguage(code?: string) {
   const normalizedCode = code?.split("-")[0]?.toLowerCase();
-  if (!normalizedCode) return { language: "未公开", languageCode: "" };
+  if (!normalizedCode) return { language: "Unknown", languageCode: "" };
 
   return {
     language: languageNames[normalizedCode] ?? normalizedCode,
@@ -216,8 +217,9 @@ function getLanguage(code?: string) {
 function getAverageViews(viewCount?: string, videoCount?: string) {
   const views = Number(viewCount ?? 0);
   const videos = Number(videoCount ?? 0);
+
   if (!Number.isFinite(views) || !Number.isFinite(videos) || videos <= 0) {
-    return { averageViews: "暂未提供", averageViewsRaw: null };
+    return { averageViews: "Unavailable", averageViewsRaw: null };
   }
 
   const averageViewsRaw = Math.round(views / videos);
@@ -241,30 +243,38 @@ function average(values: number[]) {
 }
 
 function getLastUploadLabel(lastUploadAt: string | null) {
-  if (!lastUploadAt) return { lastUpload: "暂未提供", lastUploadDaysAgo: null };
+  if (!lastUploadAt) {
+    return {
+      lastUpload: "Unavailable",
+      lastUploadDaysAgo: null
+    };
+  }
 
   const date = new Date(lastUploadAt);
   if (Number.isNaN(date.getTime())) {
-    return { lastUpload: "暂未提供", lastUploadDaysAgo: null };
+    return {
+      lastUpload: "Unavailable",
+      lastUploadDaysAgo: null
+    };
   }
 
   const daysAgo = Math.max(0, Math.floor((Date.now() - date.getTime()) / MS_PER_DAY));
   const dateLabel = date.toISOString().slice(0, 10);
-  const suffix = daysAgo === 0 ? "今天" : daysAgo === 1 ? "1 天前" : `${daysAgo} 天前`;
+  const suffix = daysAgo === 0 ? "today" : daysAgo === 1 ? "1 day ago" : `${daysAgo} days ago`;
 
   return {
-    lastUpload: `${dateLabel} · ${suffix}`,
+    lastUpload: `${dateLabel} - ${suffix}`,
     lastUploadDaysAgo: daysAgo
   };
 }
 
 function getUploadFrequency(uploadsPerWeekRaw: number | null) {
   const safeUploadsPerWeek = uploadsPerWeekRaw ?? 0;
-  if (uploadsPerWeekRaw === null || !Number.isFinite(safeUploadsPerWeek)) return "暂未提供";
-  if (safeUploadsPerWeek >= 3) return "每周 3 次以上";
-  if (safeUploadsPerWeek >= 1) return "每周更新";
-  if (safeUploadsPerWeek >= 0.25) return "每月更新";
-  return "低于每月更新";
+  if (uploadsPerWeekRaw === null || !Number.isFinite(safeUploadsPerWeek)) return "Unavailable";
+  if (safeUploadsPerWeek >= 3) return "3+ uploads/week";
+  if (safeUploadsPerWeek >= 1) return "Weekly";
+  if (safeUploadsPerWeek >= 0.25) return "Monthly";
+  return "Less than monthly";
 }
 
 function normalizeSearchText(text?: string) {
@@ -299,7 +309,8 @@ function matchesVideoTitleQuery(title: string, query: string, keywords: string[]
   const normalizedTitle = normalizeSearchText(title);
   const normalizedQuery = normalizeSearchText(query);
   const titleMatches = countKeywordMatches(title, keywords);
-  const exactPhraseMatch = normalizedQuery.length > 0 && normalizedTitle.includes(normalizedQuery);
+  const exactPhraseMatch =
+    normalizedQuery.length > 0 && normalizedTitle.includes(normalizedQuery);
   const allKeywordsMatch = titleMatches >= getMinimumKeywordMatches(keywords);
 
   return {
@@ -319,10 +330,8 @@ function inferLanguageCodeFromTitle(title: string) {
   if (/[\u0600-\u06ff]/u.test(normalizedTitle)) return "ar";
   if (/[\u0400-\u04ff]/u.test(normalizedTitle)) return "ru";
   if (/[\u4e00-\u9fff]/u.test(normalizedTitle)) return "zh";
-  if (/[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/i.test(normalizedTitle)) {
-    return "vi";
-  }
-  if (/[çğıöşü]/i.test(normalizedTitle)) return "tr";
+  if (/[ăâđêôơư]/u.test(normalizedTitle)) return "vi";
+  if (/[ğışçöü]/u.test(normalizedTitle)) return "tr";
 
   const words = normalizedTitle.match(/[a-z]+/g) ?? [];
   if (words.length === 0) return null;
@@ -337,7 +346,6 @@ function inferLanguageCodeFromTitle(title: string) {
 
   const scores = Object.entries(languageKeywordMap).map(([code, terms]) => {
     const score = terms.reduce((sum, term) => sum + (words.includes(term) ? 1 : 0), 0);
-
     return { code, score };
   });
 
@@ -346,10 +354,7 @@ function inferLanguageCodeFromTitle(title: string) {
   return scores[0] && scores[0].score > 0 ? scores[0].code : null;
 }
 
-function deriveRegionCodeFromLanguage(
-  languageCode: string | null,
-  fallbackCountryCode?: string
-) {
+function deriveRegionCodeFromLanguage(languageCode: string | null, fallbackCountryCode?: string) {
   const normalizedLanguageCode = languageCode?.split("-")[0]?.toLowerCase() ?? "";
   const normalizedCountryCode = fallbackCountryCode?.toUpperCase() ?? "";
 
@@ -413,7 +418,8 @@ function collectVideoSearchCandidates(
     const matchResult = matchesVideoTitleQuery(item.snippet?.title ?? "", query, keywords);
     if (!matchResult.isRelevant) return;
 
-    const scoreDelta = 160 - index * 2 + matchResult.titleMatches * 28 + (matchResult.exactPhraseMatch ? 24 : 0);
+    const scoreDelta =
+      160 - index * 2 + matchResult.titleMatches * 28 + (matchResult.exactPhraseMatch ? 24 : 0);
 
     upsertChannelCandidate(candidates, channelId, scoreDelta, 1);
   });
@@ -568,6 +574,7 @@ async function fetchSearchItems(
   searchUrl.searchParams.set("maxResults", String(maxResults));
   searchUrl.searchParams.set("q", query);
   searchUrl.searchParams.set("key", apiKey);
+
   if (pageToken) {
     searchUrl.searchParams.set("pageToken", pageToken);
   }
@@ -746,7 +753,7 @@ export async function GET(request: Request) {
         ? null
         : Number(channel.statistics?.subscriberCount ?? 0);
       const subscriberCount = channel.statistics?.hiddenSubscriberCount
-        ? "未公开"
+        ? "Hidden"
         : formatNumber(channel.statistics?.subscriberCount);
       const { averageViews, averageViewsRaw } = getAverageViews(
         channel.statistics?.viewCount,
@@ -762,15 +769,13 @@ export async function GET(request: Request) {
         channelCountryCode ??
         null;
       const { region, regionCode } = getRegion(derivedRegionCode ?? undefined);
-      const { language, languageCode } = getLanguage(
-        matchedLanguageCode
-      );
+      const { language, languageCode } = getLanguage(matchedLanguageCode);
       const description = channel.snippet?.description ?? "";
       const emails = extractEmails(description);
       const activity = activityMetrics[index] ?? fallbackActivityMetrics;
 
       return {
-        channelTitle: channel.snippet?.title ?? "未命名频道",
+        channelTitle: channel.snippet?.title ?? "Untitled Channel",
         channelId: channel.id,
         profileImage:
           channel.snippet?.thumbnails?.high?.url ??
@@ -781,7 +786,7 @@ export async function GET(request: Request) {
         subscriberCountRaw,
         description,
         emails,
-        email: emails[0] ?? "未公开",
+        email: emails[0] ?? "Unknown",
         channelUrl: `https://www.youtube.com/channel/${channel.id}`,
         averageViews,
         averageViewsRaw,

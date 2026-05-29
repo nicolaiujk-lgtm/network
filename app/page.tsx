@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { motion } from "framer-motion";
 import {
@@ -19,6 +19,7 @@ import {
   Wand2
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { Dispatch, SetStateAction } from "react";
 
 type ActiveWindow = "any" | "7" | "30" | "90";
 type UploadFrequencyFilter = "any" | "weekly-3-plus" | "weekly" | "monthly";
@@ -95,22 +96,50 @@ type RangeOption = {
 };
 
 const filters = {
-  鍦板尯: ["Brazil", "United States", "Europe", "Korea", "Japan", "Thailand", "Vietnam", "Indonesia", "Philippines", "Hong Kong & Taiwan", "Russia", "Arab", "Turkey"],
-  璇█: ["Portuguese", "Spanish", "English", "Korean", "Japanese", "Thai", "Vietnamese", "Indonesian", "Filipino", "Chinese", "Russian", "Arabic", "Turkish"]
+  Regions: [
+    "Brazil",
+    "United States",
+    "Europe",
+    "Korea",
+    "Japan",
+    "Thailand",
+    "Vietnam",
+    "Indonesia",
+    "Philippines",
+    "Hong Kong & Taiwan",
+    "Russia",
+    "Arab",
+    "Turkey"
+  ],
+  Languages: [
+    "Portuguese",
+    "Spanish",
+    "English",
+    "Korean",
+    "Japanese",
+    "Thai",
+    "Vietnamese",
+    "Indonesian",
+    "Filipino",
+    "Chinese",
+    "Russian",
+    "Arabic",
+    "Turkish"
+  ]
 };
 
 const activeWindowOptions: Array<{ label: string; value: ActiveWindow }> = [
-  { label: "涓嶉檺", value: "any" },
-  { label: "杩?7 澶?, value: "7" },
-  { label: "杩?30 澶?, value: "30" },
-  { label: "杩?90 澶?, value: "90" }
+  { label: "No limit", value: "any" },
+  { label: "Last 7 days", value: "7" },
+  { label: "Last 30 days", value: "30" },
+  { label: "Last 90 days", value: "90" }
 ];
 
 const uploadFrequencyOptions: Array<{ label: string; value: UploadFrequencyFilter }> = [
-  { label: "涓嶉檺", value: "any" },
-  { label: "姣忓懆 3 娆′互涓?, value: "weekly-3-plus" },
-  { label: "姣忓懆鏇存柊", value: "weekly" },
-  { label: "姣忔湀鏇存柊", value: "monthly" }
+  { label: "No limit", value: "any" },
+  { label: "3+ uploads/week", value: "weekly-3-plus" },
+  { label: "Weekly", value: "weekly" },
+  { label: "Monthly", value: "monthly" }
 ];
 
 const defaultFilterState: FilterState = {
@@ -125,17 +154,17 @@ const defaultFilterState: FilterState = {
 
 const followerRangeOptions: RangeOption[] = [
   { value: 1000, label: "1K", selectedLabel: "1K+" },
-  { value: 10000, label: "1w", selectedLabel: "1w+" },
-  { value: 50000, label: "5w", selectedLabel: "5w+" },
-  { value: 100000, label: "10w", selectedLabel: "10w+" },
-  { value: 200000, label: "20w", selectedLabel: "20w+" },
-  { value: 300000, label: "30w", selectedLabel: "30w+" },
-  { value: 500000, label: "50w", selectedLabel: "50w+" },
-  { value: 1000000, label: "100w", selectedLabel: "100w+" }
+  { value: 10000, label: "10K", selectedLabel: "10K+" },
+  { value: 50000, label: "50K", selectedLabel: "50K+" },
+  { value: 100000, label: "100K", selectedLabel: "100K+" },
+  { value: 200000, label: "200K", selectedLabel: "200K+" },
+  { value: 300000, label: "300K", selectedLabel: "300K+" },
+  { value: 500000, label: "500K", selectedLabel: "500K+" },
+  { value: 1000000, label: "1M", selectedLabel: "1M+" }
 ];
 
 const engagementRangeOptions: RangeOption[] = [
-  { value: 0, label: "0", selectedLabel: "涓嶉檺" },
+  { value: 0, label: "0%", selectedLabel: "No limit" },
   { value: 5, label: "5%", selectedLabel: "5%+" },
   { value: 10, label: "10%", selectedLabel: "10%+" },
   { value: 15, label: "15%", selectedLabel: "15%+" }
@@ -144,9 +173,9 @@ const engagementRangeOptions: RangeOption[] = [
 const averageViewRangeOptions: RangeOption[] = [
   { value: 300, label: "300", selectedLabel: "300+" },
   { value: 500, label: "500", selectedLabel: "500+" },
-  { value: 1000, label: "1k", selectedLabel: "1k+" },
-  { value: 5000, label: "5k", selectedLabel: "5k+" },
-  { value: 10000, label: "1w+", selectedLabel: "1w+" }
+  { value: 1000, label: "1K", selectedLabel: "1K+" },
+  { value: 5000, label: "5K", selectedLabel: "5K+" },
+  { value: 10000, label: "10K", selectedLabel: "10K+" }
 ];
 
 const regionCodeGroups: Record<string, string[]> = {
@@ -187,48 +216,59 @@ const uploadFrequencyThresholds: Record<Exclude<UploadFrequencyFilter, "any">, n
   monthly: 0.25
 };
 
-const compactNumberFormatter = new Intl.NumberFormat("en", {
-  notation: "compact",
-  maximumFractionDigits: 1
-});
-
-const percentageFormatter = new Intl.NumberFormat("en", {
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 1
-});
-
 function inferTags(query: string, description: string) {
   const source = `${query} ${description}`.toLowerCase();
   const tags = [
     ["Roblox", "roblox"],
-    ["绉诲姩娓告垙", "mobile"],
+    ["Mobile", "mobile"],
     ["MMORPG", "mmorpg"],
-    ["娌欑洅", "sandbox"],
-    ["妯℃嫙缁忚惀", "simulation"],
-    ["浜屾鍏冩父鎴?, "anime"]
+    ["Sandbox", "sandbox"],
+    ["Simulation", "simulation"],
+    ["Anime", "anime"]
   ]
     .filter(([, keyword]) => source.includes(keyword))
     .map(([tag]) => tag);
 
-  return tags.length > 0 ? tags.slice(0, 3) : ["YouTube", "娓告垙鍐呭", "鍒涗綔鑰?];
+  return tags.length > 0 ? tags.slice(0, 3) : ["YouTube", "Gaming", "Creator"];
+}
+
+function getRegionFlag(regionCode: string) {
+  const flagMap: Record<string, string> = {
+    BR: "BR",
+    US: "US",
+    KR: "KR",
+    JP: "JP",
+    TH: "TH",
+    VN: "VN",
+    ID: "ID",
+    PH: "PH",
+    HK: "HK",
+    TW: "TW",
+    MO: "MO",
+    RU: "RU",
+    TR: "TR",
+    AE: "AE"
+  };
+
+  return flagMap[regionCode] ?? "YT";
 }
 
 function normalizeCreator(item: YouTubeCreatorResponse, query: string, index: number): Creator {
   return {
     name: item.channelTitle,
-    handle: `棰戦亾 ID锛?{item.channelId}`,
+    handle: `Channel ID: ${item.channelId}`,
     channelId: item.channelId,
     channelUrl: item.channelUrl,
     profileImage: item.profileImage,
     platform: "YouTube",
-    flag: "馃寪",
-    region: item.region,
+    flag: getRegionFlag(item.regionCode),
+    region: item.region || "Unknown",
     regionCode: item.regionCode,
-    language: item.language,
+    language: item.language || "Unknown",
     languageCode: item.languageCode,
     followers: item.subscriberCount,
     followersCount: item.subscriberCountRaw,
-    avgViews: item.averageViews ?? "鏆傛湭鎻愪緵",
+    avgViews: item.averageViews ?? "Unavailable",
     avgViewsCount: item.averageViewsRaw,
     engagement: item.engagementRate,
     engagementRateRaw: item.engagementRateRaw,
@@ -241,41 +281,31 @@ function normalizeCreator(item: YouTubeCreatorResponse, query: string, index: nu
     uploadFrequency: item.uploadFrequency,
     uploadsPerWeekRaw: item.uploadsPerWeekRaw,
     score: Math.max(82, 96 - index * 3),
-    description: item.description || "璇ラ閬撴殏鏈彁渚涚畝浠嬶紝鍙繘鍏?YouTube 涓婚〉鏌ョ湅瀹屾暣鍐呭涓庤繎鏈熻棰戙€?
+    description:
+      item.description ||
+      "This channel does not provide a public description yet. Open the channel page to review recent videos."
   };
-}
-
-function formatCompactNumber(value: number) {
-  return compactNumberFormatter.format(value);
-}
-
-function formatPercentage(value: number) {
-  return `${percentageFormatter.format(value)}%`;
 }
 
 function getRangeOptionIndex(value: number, options: RangeOption[]) {
   const optionIndex = options.findIndex((option) => option.value === value);
-
   return optionIndex >= 0 ? optionIndex : 0;
 }
 
 function getSelectedRangeLabel(value: number, options: RangeOption[]) {
   const safeIndex = getRangeOptionIndex(value, options);
   const option = options[safeIndex];
-
   return option.selectedLabel ?? option.label;
 }
 
 function matchesSelectedGroup(value: string, selected: string[], groups: Record<string, string[]>) {
   if (selected.length === 0) return true;
   if (!value) return false;
-
   return selected.some((item) => groups[item]?.includes(value));
 }
 
 function matchesActiveWindow(lastUploadDaysAgo: number | null, activeWithinDays: ActiveWindow) {
   if (activeWithinDays === "any") return true;
-
   return typeof lastUploadDaysAgo === "number" && lastUploadDaysAgo <= Number(activeWithinDays);
 }
 
@@ -336,29 +366,30 @@ function escapeCsvCell(value: string | number | null | undefined) {
 
 function exportCreatorsToCsv(creators: Creator[], query: string) {
   const headers = [
-    "鍚嶅瓧",
-    "棰戦亾閾炬帴",
-    "鍥藉/鍦板尯",
-    "鍦板尯浠ｇ爜",
-    "璇█",
-    "绮変笣鏁伴噺",
-    "绮変笣鏁板師濮嬪€?,
-    "骞冲潎鎾斁",
-    "浜掑姩鐜?,
-    "鏈€杩戞椿璺?,
-    "鏇存柊棰戠巼",
-    "閭",
-    "棰戦亾ID",
-    "棰戦亾绠€浠?
+    "Name",
+    "Channel URL",
+    "Region",
+    "Region Code",
+    "Language",
+    "Followers",
+    "Followers Raw",
+    "Average Views",
+    "Engagement Rate",
+    "Last Upload",
+    "Upload Frequency",
+    "Email",
+    "Channel ID",
+    "Description"
   ];
+
   const rows = creators.map((creator) => [
     creator.name,
     creator.channelUrl,
     creator.region,
-    creator.regionCode || "鏈叕寮€",
+    creator.regionCode || "Unknown",
     creator.language,
     creator.followers,
-    creator.followersCount ?? "鏈叕寮€",
+    creator.followersCount ?? "Unknown",
     creator.avgViews,
     creator.engagement,
     creator.lastUpload,
@@ -367,18 +398,21 @@ function exportCreatorsToCsv(creators: Creator[], query: string) {
     creator.channelId,
     creator.description
   ]);
+
   const csv = [headers, ...rows]
     .map((row) => row.map((cell) => escapeCsvCell(cell)).join(","))
     .join("\n");
+
   const blob = new Blob([`\uFEFF${csv}`], {
     type: "text/csv;charset=utf-8"
   });
+
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   const safeQuery = query.trim().replace(/[\\/:*?"<>|]+/g, "-") || "youtube-creators";
 
   link.href = url;
-  link.download = `${safeQuery}-鍗氫富鎼滅储缁撴灉.csv`;
+  link.download = `${safeQuery}-creators.csv`;
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -404,6 +438,7 @@ export default function Home() {
 
   const searchCreators = useCallback(async (nextQuery: string) => {
     const trimmedQuery = nextQuery.trim();
+
     if (!trimmedQuery) {
       setCreators([]);
       setSelectedCreator(null);
@@ -423,18 +458,23 @@ export default function Home() {
       };
 
       if (!response.ok) {
-        throw new Error(data.error ?? "YouTube 妫€绱㈠け璐ワ紝璇风◢鍚庨噸璇曘€?);
+        throw new Error(data.error ?? "YouTube search failed. Please try again.");
       }
 
       const normalizedCreators = (data.creators ?? []).map((item, index) =>
         normalizeCreator(item, trimmedQuery, index)
       );
+
       setCreators(normalizedCreators);
       setSelectedCreator(null);
     } catch (searchError) {
       setCreators([]);
       setSelectedCreator(null);
-      setError(searchError instanceof Error ? searchError.message : "YouTube 妫€绱㈠け璐ワ紝璇风◢鍚庨噸璇曘€?);
+      setError(
+        searchError instanceof Error
+          ? searchError.message
+          : "YouTube search failed. Please try again."
+      );
     } finally {
       setIsLoading(false);
     }
@@ -444,7 +484,10 @@ export default function Home() {
 
   useEffect(() => {
     setSelectedCreator((currentCreator) => {
-      if (currentCreator && filteredCreators.some((creator) => creator.channelId === currentCreator.channelId)) {
+      if (
+        currentCreator &&
+        filteredCreators.some((creator) => creator.channelId === currentCreator.channelId)
+      ) {
         return currentCreator;
       }
 
@@ -453,14 +496,14 @@ export default function Home() {
   }, [filteredCreators]);
 
   const resultSummary = useMemo(() => {
-    if (isLoading) return "姝ｅ湪浠?YouTube API 鑾峰彇棰戦亾鏁版嵁";
-    if (error) return "妫€绱㈤亣鍒伴棶棰?;
-    if (!hasSearched) return "请输入关键词后开始搜索";
-    if (creators.length === 0 && hasSearched) return "鏆傛棤鍖归厤棰戦亾";
+    if (isLoading) return "Loading creators from YouTube...";
+    if (error) return "Search hit an error.";
+    if (!hasSearched) return "Enter a keyword to start searching.";
+    if (creators.length === 0) return "No matching channels found.";
     if (filteredCreators.length !== creators.length) {
-      return `${filteredCreators.length} / ${creators.length} 涓閬撶鍚堝綋鍓嶇瓫閫塦;
+      return `${filteredCreators.length} / ${creators.length} channels match the current filters.`;
     }
-    return `${creators.length} 涓?YouTube 棰戦亾缁撴灉`;
+    return `${creators.length} YouTube channels found.`;
   }, [creators.length, error, filteredCreators.length, hasSearched, isLoading]);
 
   return (
@@ -515,15 +558,21 @@ function Hero({
         <div className="rounded-lg border border-white/10 bg-white/[0.98] p-6 shadow-card sm:p-8">
           <div className="flex flex-wrap items-center gap-3">
             <span className="rounded-md bg-indigo-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
-              V1 鍗氫富鍙戠幇涓灑
+              Influencer Search
             </span>
             <span className="flex items-center gap-2 text-sm font-medium text-slate-500">
               <Activity className="size-4 text-success" />
-              YouTube API 瀹炴椂棰戦亾妫€绱?            </span>
+              Live channel discovery with YouTube API
+            </span>
           </div>
+
           <h1 className="mt-6 max-w-3xl text-4xl font-semibold tracking-normal text-slate-950 sm:text-5xl">
-            涓轰綘鐨勬柊娓告垙蹇€熸壘鍒板悎閫傚崥涓?          </h1>
-          <p className="mt-4 text-lg text-slate-600">閫氳繃鎼滅储銆佹爣绛剧瓫閫夊拰鐩镐技鎺ㄨ崘锛屽揩閫熷彂鐜伴珮鍖归厤搴﹀崥涓汇€?/p>
+            Find matching creators for your game faster
+          </h1>
+          <p className="mt-4 text-lg text-slate-600">
+            Search by keyword first, then narrow the channel list with region, language,
+            follower, activity, and engagement filters.
+          </p>
 
           <form
             className="mt-8 rounded-lg border border-slate-200 bg-slate-50 p-2 shadow-inner"
@@ -542,7 +591,7 @@ function Hero({
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck={false}
-                  placeholder="鎸夊崥涓汇€佹父鎴忋€佹爣绛炬垨鍏抽敭璇嶆悳绱?
+                  placeholder="Search keywords, games, genres, or topics"
                   className="w-full border-0 bg-transparent text-base font-medium text-slate-900 outline-none placeholder:text-slate-400"
                 />
               </label>
@@ -551,8 +600,12 @@ function Hero({
                 disabled={isLoading}
                 type="submit"
               >
-                {isLoading ? <Loader2 className="size-5 animate-spin" /> : <SlidersHorizontal className="size-5" />}
-                {isLoading ? "妫€绱腑" : "妫€绱㈠崥涓?}
+                {isLoading ? (
+                  <Loader2 className="size-5 animate-spin" />
+                ) : (
+                  <SlidersHorizontal className="size-5" />
+                )}
+                {isLoading ? "Searching" : "Search Creators"}
               </button>
             </div>
           </form>
@@ -562,35 +615,39 @@ function Hero({
 
         <div className="rounded-lg border border-white/10 bg-white/[0.98] p-6 shadow-card">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-wide text-primary">鏁版嵁瀵煎嚭</p>
-            <h2 className="mt-2 text-2xl font-semibold text-slate-950">瀵煎嚭鏈鎼滅储缁撴灉</h2>
+            <p className="text-sm font-semibold uppercase tracking-wide text-primary">Export</p>
+            <h2 className="mt-2 text-2xl font-semibold text-slate-950">
+              Export the current result set
+            </h2>
             <p className="mt-3 text-sm leading-6 text-slate-600">
-              瀵煎嚭鎵€鏈?YouTube API 鎼滅储鍑虹殑鍗氫富鏁版嵁锛屽寘鍚悕瀛椼€侀閬撻摼鎺ャ€佸浗瀹?鍦板尯銆佺矇涓濇暟閲忓拰閭銆?            </p>
+              Download the creators currently returned by the search, including region,
+              language, followers, engagement, upload activity, and contact fields.
+            </p>
           </div>
 
           <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-slate-950">鍙鍑洪閬?/p>
-                <p className="mt-1 text-xs text-slate-500">{exportCreators.length} 涓閬?路 CSV 鏂囦欢</p>
+                <p className="text-sm font-semibold text-slate-950">Exportable channels</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {exportCreators.length} channels, CSV format
+                </p>
               </div>
               <span className="rounded-md bg-indigo-50 px-2 py-1 text-xs font-semibold text-primary">
-                鍏ㄩ噺鎼滅储缁撴灉
+                Search snapshot
               </span>
             </div>
           </div>
 
           <button
-            className="mt-5 flex min-h-12 w-full items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white shadow-lg shadow-slate-900/15 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={!hasExportData || isLoading}
+            className="mt-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-950 px-4 text-sm font-semibold text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={!hasExportData}
             onClick={() => exportCreatorsToCsv(exportCreators, query)}
+            type="button"
           >
             <Download className="size-4" />
-            {hasExportData ? "瀵煎嚭 CSV 鏂囦欢" : "鏆傛棤鍙鍑烘暟鎹?}
+            Export CSV
           </button>
-
-          <div className="mt-4 rounded-lg border border-dashed border-slate-200 bg-white p-4 text-xs leading-5 text-slate-500">
-            閭鏉ヨ嚜棰戦亾绠€浠嬭嚜鍔ㄨ瘑鍒紱鑻ラ閬撴湭鍏紑閭锛屾枃浠朵腑浼氭樉绀衡€滄湭鍏紑鈥濄€?          </div>
         </div>
       </div>
     </section>
@@ -602,57 +659,53 @@ function FilterPanel({
   setFilterState
 }: {
   filterState: FilterState;
-  setFilterState: (value: FilterState | ((current: FilterState) => FilterState)) => void;
+  setFilterState: Dispatch<SetStateAction<FilterState>>;
 }) {
-  const toggleFilter = (type: "regions" | "languages", value: string) => {
+  const toggleMultiSelect = (groupKey: "regions" | "languages", value: string) => {
     setFilterState((current) => {
-      const currentValues = current[type];
-      const nextValues = currentValues.includes(value)
-        ? currentValues.filter((item) => item !== value)
-        : [...currentValues, value];
+      const group = current[groupKey];
+      const nextValues = group.includes(value)
+        ? group.filter((item) => item !== value)
+        : [...group, value];
 
       return {
         ...current,
-        [type]: nextValues
+        [groupKey]: nextValues
       };
     });
   };
 
-  const clearFilters = () => setFilterState(defaultFilterState);
-
   return (
-    <aside className="rounded-lg border border-white/10 bg-white p-5 shadow-card xl:sticky xl:top-8 xl:self-start">
-      <div className="flex items-center justify-between border-b border-slate-200 pb-4">
-        <div>
-          <p className="text-sm font-semibold text-slate-950">绛涢€夐潰鏉?/p>
-          <p className="mt-1 text-xs text-slate-500">鎸変笂绾垮尮閰嶅害绮惧噯绛涢€夊崥涓?/p>
+    <aside className="rounded-lg border border-white/10 bg-white p-5 shadow-card sm:p-6">
+      <div className="border-b border-slate-200 pb-5">
+        <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-primary">
+          <Filter className="size-4" />
+          Filters
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={clearFilters}
-            className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 transition hover:border-indigo-200 hover:text-primary"
-          >
-            娓呯┖绛涢€?          </button>
-          <Filter className="size-5 text-primary" />
-        </div>
+        <h2 className="mt-2 text-2xl font-semibold text-slate-950">Refine the channel list</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-600">
+          Search always uses the raw keyword first. Everything below filters the channel set after
+          the search results come back.
+        </p>
       </div>
 
-      <div className="thin-scrollbar mt-5 max-h-none space-y-6 overflow-auto xl:max-h-[720px]">
+      <div className="mt-5 space-y-5">
         <FilterGroup
-          label="鍦板尯"
-          onToggle={(value) => toggleFilter("regions", value)}
-          options={filters.鍦板尯}
+          label="Regions"
+          onToggle={(value) => toggleMultiSelect("regions", value)}
+          options={filters.Regions}
           selectedOptions={filterState.regions}
         />
+
         <FilterGroup
-          label="璇█"
-          onToggle={(value) => toggleFilter("languages", value)}
-          options={filters.璇█}
+          label="Languages"
+          onToggle={(value) => toggleMultiSelect("languages", value)}
+          options={filters.Languages}
           selectedOptions={filterState.languages}
         />
 
         <RangeBlock
-          label="绮変笣閲?
+          label="Followers"
           options={followerRangeOptions}
           onChange={(value) =>
             setFilterState((current) => ({
@@ -663,8 +716,9 @@ function FilterPanel({
           value={filterState.minFollowers}
           valueLabel={getSelectedRangeLabel(filterState.minFollowers, followerRangeOptions)}
         />
+
         <RangeBlock
-          label="浜掑姩鐜?
+          label="Engagement Rate"
           options={engagementRangeOptions}
           onChange={(value) =>
             setFilterState((current) => ({
@@ -673,10 +727,14 @@ function FilterPanel({
             }))
           }
           value={filterState.minEngagementRate}
-          valueLabel={getSelectedRangeLabel(filterState.minEngagementRate, engagementRangeOptions)}
+          valueLabel={getSelectedRangeLabel(
+            filterState.minEngagementRate,
+            engagementRangeOptions
+          )}
         />
+
         <RangeBlock
-          label="骞冲潎鎾斁"
+          label="Average Views"
           options={averageViewRangeOptions}
           onChange={(value) =>
             setFilterState((current) => ({
@@ -691,7 +749,8 @@ function FilterPanel({
         <div>
           <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
             <CalendarDays className="size-4 text-slate-400" />
-            鏈€杩戞椿璺冩椂闂?          </label>
+            Recent Activity
+          </label>
           <select
             className="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-primary"
             value={filterState.activeWithinDays}
@@ -713,7 +772,7 @@ function FilterPanel({
         <div>
           <label className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-700">
             <TrendingUp className="size-4 text-slate-400" />
-            鏇存柊棰戠巼
+            Upload Frequency
           </label>
           <select
             className="h-11 w-full rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none transition focus:border-primary"
@@ -749,20 +808,23 @@ function FilterGroup({
   selectedOptions: string[];
 }) {
   const iconMap: Record<string, typeof Globe2> = {
-    鍦板尯: Globe2,
-    璇█: Languages
+    Regions: Globe2,
+    Languages: Languages
   };
+
   const Icon = iconMap[label] ?? Tags;
+
   const placeholderMap: Record<string, string> = {
-    鍦板尯: "Select Region",
-    璇█: "Select Language"
+    Regions: "Select regions",
+    Languages: "Select languages"
   };
+
   const summary =
     selectedOptions.length === 0
       ? placeholderMap[label] ?? `Select ${label}`
       : selectedOptions.length <= 2
-        ? selectedOptions.join("銆?)
-        : `Selected ${selectedOptions.length}`;
+        ? selectedOptions.join(", ")
+        : `${selectedOptions.length} selected`;
 
   return (
     <details className="group">
@@ -780,6 +842,7 @@ function FilterGroup({
           <ChevronDown className="size-4 shrink-0 text-slate-400 transition group-open:rotate-180" />
         </span>
       </summary>
+
       <div className="mt-3 grid grid-cols-2 gap-2">
         {options.map((option) => (
           <label
@@ -840,7 +903,10 @@ function RangeBlock({
             type="range"
             value={sliderIndex}
           />
-          <div className="mt-3 grid gap-2" style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}>
+          <div
+            className="mt-3 grid gap-2"
+            style={{ gridTemplateColumns: `repeat(${options.length}, minmax(0, 1fr))` }}
+          >
             {options.map((option, index) => {
               const isActive = index <= sliderIndex;
 
@@ -887,16 +953,19 @@ function SearchResults({
     <section className="rounded-lg border border-white/10 bg-white p-5 shadow-card sm:p-6">
       <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-wide text-primary">鍗氫富妫€绱?/p>
-          <h2 className="mt-2 text-2xl font-semibold text-slate-950">YouTube 棰戦亾瀹炴椂妫€绱㈢粨鏋?/h2>
+          <p className="text-sm font-semibold uppercase tracking-wide text-primary">Results</p>
+          <h2 className="mt-2 text-2xl font-semibold text-slate-950">
+            Real-time YouTube creator results
+          </h2>
         </div>
         <div className="grid grid-cols-3 gap-2 rounded-lg bg-slate-100 p-1">
-          {["鍖归厤搴?, "璁㈤槄閲?, "棰戦亾璐ㄩ噺"].map((item, index) => (
+          {["Match", "Followers", "Quality"].map((item, index) => (
             <button
               key={item}
               className={`rounded-md px-3 py-2 text-sm font-semibold transition ${
                 index === 0 ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-900"
               }`}
+              type="button"
             >
               {item}
             </button>
@@ -907,7 +976,9 @@ function SearchResults({
       <div className="mt-5 grid gap-4">
         {isLoading && <LoadingState />}
         {!isLoading && error && <ErrorState error={error} onRetry={searchCreators} />}
-        {!isLoading && !error && hasSearched && creators.length === 0 && <EmptyState hasRawResults={totalCreators > 0} />}
+        {!isLoading && !error && hasSearched && creators.length === 0 && (
+          <EmptyState hasRawResults={totalCreators > 0} />
+        )}
         {!isLoading &&
           !error &&
           creators.map((creator) => (
@@ -948,10 +1019,12 @@ function EmptyState({ hasRawResults }: { hasRawResults: boolean }) {
     <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
       <Search className="mx-auto size-9 text-slate-300" />
       <h3 className="mt-4 text-lg font-semibold text-slate-950">
-        {hasRawResults ? "褰撳墠绛涢€夋潯浠朵笅娌℃湁鍖归厤棰戦亾" : "娌℃湁鎵惧埌鍖归厤鐨?YouTube 棰戦亾"}
+        {hasRawResults ? "No channels match the current filters." : "No matching YouTube channels found."}
       </h3>
       <p className="mt-2 text-sm text-slate-500">
-        {hasRawResults ? "鏀惧绛涢€夋潯浠跺悗鍐嶈瘯涓€娆°€? : "鎹竴涓父鎴忋€佸湴鍖烘垨鍐呭鍏抽敭璇嶅啀璇曚竴娆°€?}
+        {hasRawResults
+          ? "Try loosening the filters and search again."
+          : "Try another game, keyword, region, or topic."}
       </p>
     </div>
   );
@@ -960,13 +1033,15 @@ function EmptyState({ hasRawResults }: { hasRawResults: boolean }) {
 function ErrorState({ error, onRetry }: { error: string; onRetry: () => void }) {
   return (
     <div className="rounded-lg border border-red-100 bg-red-50 p-5">
-      <h3 className="font-semibold text-red-700">YouTube API 璇锋眰澶辫触</h3>
+      <h3 className="font-semibold text-red-700">YouTube API request failed</h3>
       <p className="mt-2 text-sm leading-6 text-red-600">{error}</p>
       <button
         onClick={onRetry}
         className="mt-4 rounded-md bg-white px-4 py-2 text-sm font-semibold text-red-600 shadow-sm transition hover:-translate-y-0.5"
+        type="button"
       >
-        閲嶆柊妫€绱?      </button>
+        Retry Search
+      </button>
     </div>
   );
 }
@@ -995,13 +1070,20 @@ function CreatorCard({
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="text-xl font-semibold text-slate-950">{creator.name}</h3>
               <PlatformBadge platform={creator.platform} />
-              <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">{creator.flag}</span>
+              <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">
+                {creator.flag}
+              </span>
             </div>
             <p className="mt-1 truncate text-sm font-medium text-slate-500">{creator.handle}</p>
             <p className="mt-2 text-sm font-medium text-slate-600">
-              閭锛?span className={creator.email === "鏈叕寮€" ? "text-slate-400" : "text-primary"}>{creator.email}</span>
+              Email:{" "}
+              <span className={creator.email === "Unknown" ? "text-slate-400" : "text-primary"}>
+                {creator.email}
+              </span>
             </p>
-            <p className="mt-3 line-clamp-2 max-w-2xl text-sm leading-6 text-slate-600">{creator.description}</p>
+            <p className="mt-3 line-clamp-2 max-w-2xl text-sm leading-6 text-slate-600">
+              {creator.description}
+            </p>
             <div className="mt-4 flex flex-wrap gap-2">
               {creator.tags.map((tag, index) => (
                 <button
@@ -1013,6 +1095,7 @@ function CreatorCard({
                         ? "bg-emerald-50 text-emerald-700"
                         : "bg-amber-50 text-amber-700"
                   }`}
+                  type="button"
                 >
                   {tag}
                 </button>
@@ -1023,34 +1106,36 @@ function CreatorCard({
 
         <div>
           <div className="grid grid-cols-3 gap-2">
-            <Metric label="绮変笣閲? value={creator.followers} />
-            <Metric label="骞冲潎鎾斁" value={creator.avgViews} />
-            <Metric label="浜掑姩鐜? value={creator.engagement} />
+            <Metric label="Followers" value={creator.followers} />
+            <Metric label="Avg Views" value={creator.avgViews} />
+            <Metric label="Engagement" value={creator.engagement} />
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <div className="rounded-lg bg-slate-50 p-3">
-              <p className="text-xs font-medium text-slate-500">鏈€杩戞椿璺?/p>
+              <p className="text-xs font-medium text-slate-500">Recent Activity</p>
               <p className="mt-1 text-sm font-semibold text-slate-950">{creator.lastUpload}</p>
-              <p className="mt-1 text-xs text-slate-500">鏇存柊棰戠巼锛歿creator.uploadFrequency}</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Upload Frequency: {creator.uploadFrequency}
+              </p>
             </div>
             <div className="rounded-lg bg-gradient-to-br from-indigo-50 to-blue-50 p-3">
-              <p className="text-xs font-medium text-slate-500">鍖归厤搴?/p>
-              <p className="mt-1 text-sm font-semibold text-primary">{creator.score}% 鍖归厤</p>
+              <p className="text-xs font-medium text-slate-500">Match Score</p>
+              <p className="mt-1 text-sm font-semibold text-primary">{creator.score}% match</p>
             </div>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             <ActionButton
-              label="鏌ョ湅涓婚〉"
+              label="Open Channel"
               icon={BarChart3}
               onClick={() => window.open(creator.channelUrl, "_blank", "noopener,noreferrer")}
             />
             <ActionButton
-              label={isRecommendationOpen ? "鏀惰捣鐩镐技鍗氫富" : "鏌ユ壘鐩镐技鍗氫富"}
+              label={isRecommendationOpen ? "Hide Similar" : "Find Similar"}
               icon={Wand2}
               primary
               onClick={() => setSelectedCreator(isRecommendationOpen ? null : creator)}
             />
-            <ActionButton label="鏀惰棌鍗氫富" icon={Bookmark} />
+            <ActionButton label="Save Creator" icon={Bookmark} />
           </div>
         </div>
       </div>
@@ -1059,10 +1144,16 @@ function CreatorCard({
         <div className="mt-5 border-t border-slate-200 pt-5">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-primary">鐩镐技鍗氫富鎺ㄨ崘</p>
-              <h4 className="mt-1 text-lg font-semibold text-slate-950">涓?{creator.name} 鐩歌繎鐨?YouTube 鍗氫富</h4>
+              <p className="text-sm font-semibold uppercase tracking-wide text-primary">
+                Similar Creators
+              </p>
+              <h4 className="mt-1 text-lg font-semibold text-slate-950">
+                More channels close to {creator.name}
+              </h4>
             </div>
-            <p className="text-sm text-slate-500">鍦ㄥ綋鍓嶅崱鐗囧唴鐩存帴灞曞紑锛屾柟渚垮揩閫熷姣斻€?/p>
+            <p className="text-sm text-slate-500">
+              Opened inline so you can compare without jumping to the page bottom.
+            </p>
           </div>
 
           <div className="mt-4 grid gap-3 lg:grid-cols-3">
@@ -1095,8 +1186,8 @@ function InlineRecommendationCard({ creator }: { creator: Creator }) {
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-2">
-        <Metric label="绮変笣閲? value={creator.followers} />
-        <Metric label="骞冲潎鎾斁" value={creator.avgViews} />
+        <Metric label="Followers" value={creator.followers} />
+        <Metric label="Avg Views" value={creator.avgViews} />
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
@@ -1110,9 +1201,10 @@ function InlineRecommendationCard({ creator }: { creator: Creator }) {
       <button
         onClick={() => window.open(creator.channelUrl, "_blank", "noopener,noreferrer")}
         className="mt-4 flex min-h-10 w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-indigo-200 hover:text-primary"
+        type="button"
       >
         <BarChart3 className="size-4" />
-        鏌ョ湅涓婚〉
+        Open Channel
       </button>
     </motion.article>
   );
@@ -1128,7 +1220,7 @@ function Avatar({ creator, large = false }: { creator: Creator; large?: boolean 
   if (creator.profileImage) {
     return (
       <img
-        alt={`${creator.name} 澶村儚`}
+        alt={`${creator.name} avatar`}
         className={`shrink-0 rounded-lg object-cover shadow-lg shadow-indigo-500/10 ${
           large ? "size-20" : "size-12"
         }`}
@@ -1142,7 +1234,7 @@ function Avatar({ creator, large = false }: { creator: Creator; large?: boolean 
       className={`grid shrink-0 place-items-center rounded-lg bg-gradient-to-br from-slate-900 via-primary to-secondary font-bold text-white shadow-lg shadow-indigo-500/20 ${
         large ? "size-20 text-xl" : "size-12 text-sm"
       }`}
-      aria-label={`${creator.name} 澶村儚`}
+      aria-label={`${creator.name} avatar`}
     >
       {initials}
     </div>
@@ -1154,7 +1246,11 @@ function PlatformBadge({ platform }: { platform: Creator["platform"] }) {
     YouTube: "bg-red-50 text-red-600"
   };
 
-  return <span className={`rounded-md px-2 py-1 text-xs font-bold ${colorMap[platform]}`}>{platform}</span>;
+  return (
+    <span className={`rounded-md px-2 py-1 text-xs font-bold ${colorMap[platform]}`}>
+      {platform}
+    </span>
+  );
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
@@ -1185,10 +1281,10 @@ function ActionButton({
           ? "bg-slate-950 text-white shadow-lg shadow-slate-900/15"
           : "border border-slate-200 bg-white text-slate-700 hover:border-indigo-200"
       }`}
+      type="button"
     >
       <Icon className="size-4" />
       {label}
     </button>
   );
 }
-
