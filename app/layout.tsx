@@ -1,18 +1,19 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "CreatorIntel | 游戏博主智能检索平台",
-  description: "面向游戏发行与市场团队的专业博主智能检索平台。"
+  title: "CreatorIntel | Game Creator Search",
+  description: "A creator discovery platform for game publishing and marketing teams."
 };
 
 export default function RootLayout({
   children
 }: Readonly<{
-  children: React.ReactNode;
+  children: ReactNode;
 }>) {
   return (
-    <html lang="zh-CN">
+    <html lang="en">
       <body>{children}</body>
     </html>
   );
