@@ -768,13 +768,15 @@ export async function GET(request: Request) {
       const channelCountryCode =
         channel.snippet?.country ?? channel.brandingSettings?.channel?.country;
       const matchedLanguageCode = matchedVideoSignal?.dominantLanguageCode ?? null;
+      const safeMatchedLanguageCode = matchedLanguageCode ?? undefined;
       const derivedRegionCode =
         deriveRegionCodeFromLanguage(matchedLanguageCode, channelCountryCode) ??
         matchedVideoSignal?.derivedRegionCode ??
         channelCountryCode ??
         null;
-      const { region, regionCode } = getRegion(derivedRegionCode ?? undefined);
-      const { language, languageCode } = getLanguage(matchedLanguageCode);
+      const safeDerivedRegionCode = derivedRegionCode ?? undefined;
+      const { region, regionCode } = getRegion(safeDerivedRegionCode);
+      const { language, languageCode } = getLanguage(safeMatchedLanguageCode);
       const description = channel.snippet?.description ?? "";
       const emails = extractEmails(description);
       const activity = activityMetrics[index] ?? fallbackActivityMetrics;
