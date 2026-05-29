@@ -87,10 +87,11 @@ type ChannelCandidate = {
 
 type ChannelVideoLanguageSignal = {
   dominantLanguageCode: string | null;
+  derivedRegionCode: string | null;
   matchedVideoCount: number;
 };
 
-const VIDEO_SEARCH_LIMIT = 30;
+const VIDEO_SEARCH_LIMIT = 50;
 const MAX_CHANNEL_RESULTS = 50;
 const RECENT_UPLOAD_LIMIT = 8;
 const CONCURRENT_ACTIVITY_REQUESTS = 6;
@@ -282,6 +283,95 @@ function countKeywordMatches(text: string, keywords: string[]) {
   }, 0);
 }
 
+function getMinimumKeywordMatches(keywords: string[]) {
+  if (keywords.length <= 1) return 1;
+  return keywords.length;
+}
+
+function matchesVideoTitleQuery(title: string, query: string, keywords: string[]) {
+  const normalizedTitle = normalizeSearchText(title);
+  const normalizedQuery = normalizeSearchText(query);
+  const titleMatches = countKeywordMatches(title, keywords);
+  const exactPhraseMatch = normalizedQuery.length > 0 && normalizedTitle.includes(normalizedQuery);
+  const allKeywordsMatch = titleMatches >= getMinimumKeywordMatches(keywords);
+
+  return {
+    titleMatches,
+    exactPhraseMatch,
+    isRelevant: exactPhraseMatch || allKeywordsMatch
+  };
+}
+
+function inferLanguageCodeFromTitle(title: string) {
+  const normalizedTitle = normalizeSearchText(title);
+
+  if (!normalizedTitle) return null;
+  if (/[\u3040-\u30ff]/u.test(normalizedTitle)) return "ja";
+  if (/[\uac00-\ud7af]/u.test(normalizedTitle)) return "ko";
+  if (/[\u0e00-\u0e7f]/u.test(normalizedTitle)) return "th";
+  if (/[\u0600-\u06ff]/u.test(normalizedTitle)) return "ar";
+  if (/[\u0400-\u04ff]/u.test(normalizedTitle)) return "ru";
+  if (/[\u4e00-\u9fff]/u.test(normalizedTitle)) return "zh";
+  if (/[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/i.test(normalizedTitle)) {
+    return "vi";
+  }
+  if (/[çğıöşü]/i.test(normalizedTitle)) return "tr";
+
+  const words = normalizedTitle.match(/[a-z]+/g) ?? [];
+  if (words.length === 0) return null;
+
+  const languageKeywordMap: Record<string, string[]> = {
+    es: ["de", "y", "en", "para", "con", "el", "la", "los", "las", "como", "por", "del", "al", "que"],
+    pt: ["de", "e", "para", "com", "o", "a", "os", "as", "do", "da", "em", "no", "na", "que"],
+    en: ["the", "and", "with", "for", "how", "to", "of", "is", "in", "on", "best", "update"],
+    id: ["yang", "untuk", "dengan", "dari", "cara", "dan", "ini", "itu", "main", "pada"],
+    fil: ["ang", "mga", "para", "paano", "sa", "ng", "at", "ito", "ako", "mo"]
+  };
+
+  const scores = Object.entries(languageKeywordMap).map(([code, terms]) => {
+    const score = terms.reduce((sum, term) => sum + (words.includes(term) ? 1 : 0), 0);
+
+    return { code, score };
+  });
+
+  scores.sort((left, right) => right.score - left.score);
+
+  return scores[0] && scores[0].score > 0 ? scores[0].code : null;
+}
+
+function deriveRegionCodeFromLanguage(
+  languageCode: string | null,
+  fallbackCountryCode?: string
+) {
+  const normalizedLanguageCode = languageCode?.split("-")[0]?.toLowerCase() ?? "";
+  const normalizedCountryCode = fallbackCountryCode?.toUpperCase() ?? "";
+
+  const languageRegionMap: Record<string, string> = {
+    ko: "KR",
+    ja: "JP",
+    th: "TH",
+    vi: "VN",
+    id: "ID",
+    tl: "PH",
+    fil: "PH",
+    ru: "RU",
+    tr: "TR",
+    ar: "AE",
+    zh: "HK",
+    pt: "BR"
+  };
+
+  if (normalizedLanguageCode === "en") {
+    return normalizedCountryCode || null;
+  }
+
+  if (normalizedLanguageCode === "es") {
+    return normalizedCountryCode || null;
+  }
+
+  return languageRegionMap[normalizedLanguageCode] ?? normalizedCountryCode ?? null;
+}
+
 function upsertChannelCandidate(
   candidates: Map<string, ChannelCandidate>,
   channelId: string,
@@ -305,6 +395,7 @@ function upsertChannelCandidate(
 
 function collectVideoSearchCandidates(
   items: YouTubeSearchItem[],
+  query: string,
   keywords: string[],
   candidates: Map<string, ChannelCandidate>
 ) {
@@ -312,9 +403,10 @@ function collectVideoSearchCandidates(
     const channelId = item.snippet?.channelId;
     if (!channelId) return;
 
-    const titleMatches = countKeywordMatches(item.snippet?.title ?? "", keywords);
-    const descriptionMatches = countKeywordMatches(item.snippet?.description ?? "", keywords);
-    const scoreDelta = 140 - index * 2 + titleMatches * 24 + descriptionMatches * 6;
+    const matchResult = matchesVideoTitleQuery(item.snippet?.title ?? "", query, keywords);
+    if (!matchResult.isRelevant) return;
+
+    const scoreDelta = 160 - index * 2 + matchResult.titleMatches * 28 + (matchResult.exactPhraseMatch ? 24 : 0);
 
     upsertChannelCandidate(candidates, channelId, scoreDelta, 1);
   });
@@ -487,28 +579,28 @@ function getDominantLanguageCode(languageCodes: string[]) {
   return sorted[0]?.[0] ?? null;
 }
 
-async function fetchMatchedVideoLanguageSignals(apiKey: string, videoIds: string[]) {
-  const uniqueVideoIds = Array.from(new Set(videoIds)).filter(Boolean);
-  if (uniqueVideoIds.length === 0) {
+function buildMatchedVideoLanguageSignals(
+  items: YouTubeSearchItem[],
+  query: string,
+  keywords: string[]
+) {
+  if (items.length === 0) {
     return new Map<string, ChannelVideoLanguageSignal>();
   }
 
-  const videosUrl = new URL("https://www.googleapis.com/youtube/v3/videos");
-  videosUrl.searchParams.set("part", "snippet");
-  videosUrl.searchParams.set("id", uniqueVideoIds.join(","));
-  videosUrl.searchParams.set("key", apiKey);
-
-  const videosData = await fetchYouTubeJson<{ items?: YouTubeVideoItem[] }>(videosUrl);
   const languageCodesByChannel = new Map<string, string[]>();
   const matchedVideoCountByChannel = new Map<string, number>();
 
-  (videosData.items ?? []).forEach((video) => {
-    const channelId = video.snippet?.channelId;
+  items.forEach((item) => {
+    const channelId = item.snippet?.channelId;
     if (!channelId) return;
+
+    const matchResult = matchesVideoTitleQuery(item.snippet?.title ?? "", query, keywords);
+    if (!matchResult.isRelevant) return;
 
     matchedVideoCountByChannel.set(channelId, (matchedVideoCountByChannel.get(channelId) ?? 0) + 1);
 
-    const languageCode = video.snippet?.defaultAudioLanguage ?? video.snippet?.defaultLanguage;
+    const languageCode = inferLanguageCodeFromTitle(item.snippet?.title ?? "");
     if (!languageCode) return;
 
     const currentCodes = languageCodesByChannel.get(channelId) ?? [];
@@ -520,9 +612,11 @@ async function fetchMatchedVideoLanguageSignals(apiKey: string, videoIds: string
 
   matchedVideoCountByChannel.forEach((matchedVideoCount, channelId) => {
     const languageCodes = languageCodesByChannel.get(channelId) ?? [];
+    const dominantLanguageCode = getDominantLanguageCode(languageCodes);
 
     signals.set(channelId, {
-      dominantLanguageCode: getDominantLanguageCode(languageCodes),
+      dominantLanguageCode,
+      derivedRegionCode: deriveRegionCodeFromLanguage(dominantLanguageCode),
       matchedVideoCount
     });
   });
@@ -551,12 +645,13 @@ export async function GET(request: Request) {
     const videoSearchData = await fetchSearchItems(apiKey, query, VIDEO_SEARCH_LIMIT);
 
     const channelCandidates = new Map<string, ChannelCandidate>();
-    const matchedVideoIds = (videoSearchData.items ?? [])
-      .map((item) => item.id?.videoId)
-      .filter((videoId): videoId is string => Boolean(videoId));
 
-    collectVideoSearchCandidates(videoSearchData.items ?? [], keywords, channelCandidates);
-    const matchedVideoLanguageSignals = await fetchMatchedVideoLanguageSignals(apiKey, matchedVideoIds);
+    collectVideoSearchCandidates(videoSearchData.items ?? [], query, keywords, channelCandidates);
+    const matchedVideoLanguageSignals = buildMatchedVideoLanguageSignals(
+      videoSearchData.items ?? [],
+      query,
+      keywords
+    );
 
     const sortedChannelIds = Array.from(channelCandidates.values())
       .sort((left, right) => {
@@ -602,13 +697,17 @@ export async function GET(request: Request) {
         channel.statistics?.videoCount
       );
       const matchedVideoSignal = matchedVideoLanguageSignals.get(channel.id);
-      const { region, regionCode } = getRegion(
-        channel.snippet?.country ?? channel.brandingSettings?.channel?.country
-      );
+      const channelCountryCode =
+        channel.snippet?.country ?? channel.brandingSettings?.channel?.country;
+      const matchedLanguageCode = matchedVideoSignal?.dominantLanguageCode ?? null;
+      const derivedRegionCode =
+        deriveRegionCodeFromLanguage(matchedLanguageCode, channelCountryCode) ??
+        matchedVideoSignal?.derivedRegionCode ??
+        channelCountryCode ??
+        null;
+      const { region, regionCode } = getRegion(derivedRegionCode ?? undefined);
       const { language, languageCode } = getLanguage(
-        matchedVideoSignal?.dominantLanguageCode ??
-          channel.snippet?.defaultLanguage ??
-          channel.brandingSettings?.channel?.defaultLanguage
+        matchedLanguageCode
       );
       const description = channel.snippet?.description ?? "";
       const emails = extractEmails(description);
